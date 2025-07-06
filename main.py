@@ -18,10 +18,8 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical
-from textual.events import Key
 from textual.message import Message
 from textual.reactive import reactive
-from textual.widget import Widget
 from textual.widgets import Button, Input, Static, TextArea
 
 
@@ -72,8 +70,8 @@ class TimerMenu(Vertical):
     class SetTime(Message):
         """Message sent when the user selects a duration."""
 
-        def __init__(self, sender: Widget, seconds: int) -> None:
-            super().__init__(sender)
+        def __init__(self, seconds: int) -> None:
+            super().__init__()
             self.seconds = seconds
 
     def compose(self) -> ComposeResult:
@@ -85,12 +83,12 @@ class TimerMenu(Vertical):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
         seconds = int(event.button.id[1:])
-        self.post_message(self.SetTime(self, seconds))
+        self.post_message(self.SetTime(seconds))
 
     def on_input_submitted(self, event: Input.Submitted) -> None:  # type: ignore[override]
         seconds = parse_time_spec(event.value)
         if seconds is not None:
-            self.post_message(self.SetTime(self, seconds))
+            self.post_message(self.SetTime(seconds))
         else:
             self.app.bell()
 
