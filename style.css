@@ -1,0 +1,34 @@
+/* Basic styling for the note app */
+
+Screen {
+    align: center middle;
+    background: black;
+}
+
+#notes {
+    width: 80%;
+    height: 80%;
+    border: solid green;
+}
+
+#timer_display {
+    dock: top;
+    height: 1;
+    content-align: center middle;
+    background: darkgreen;
+    color: white;
+}
+
+#timer_menu {
+    layer: overlay;
+    width: 30%;
+    border: solid purple;
+    background: #202020;
+    padding: 1 2;
+    align: center middle;
+}
+
+Button {
+    width: 100%;
+    margin: 1 0;
+}
