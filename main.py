@@ -18,6 +18,10 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical
+    9bfmem-codex/design-python-baseret-notesystem-med-timer
+from textual.message import Message
+from textual.reactive import reactive
+
         1kkj4s-codex/design-python-baseret-notesystem-med-timer
 from textual.message import Message
 from textual.reactive import reactive
@@ -26,6 +30,7 @@ from textual.events import Key
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
+        main
         main
 from textual.widgets import Button, Input, Static, TextArea
 
@@ -74,6 +79,21 @@ class TimerDisplay(Static):
 class TimerMenu(Vertical):
     """The pop-up menu with preset buttons and a custom input field."""
 
+    9bfmem-codex/design-python-baseret-notesystem-med-timer
+    # Allow navigating the menu using the arrow keys. Each key is bound to an
+    # action method defined below. These actions will move focus between the
+    # buttons and the input widget.
+    BINDINGS = [
+        ("up", "focus_up", "Focus previous item"),
+        ("down", "focus_down", "Focus next item"),
+    ]
+
+    class SetTime(Message):
+        """Message sent when the user selects a duration."""
+
+        def __init__(self, seconds: int) -> None:
+            super().__init__()
+
     class SetTime(Message):
         """Message sent when the user selects a duration."""
 
@@ -84,6 +104,7 @@ class TimerMenu(Vertical):
         def __init__(self, sender: Widget, seconds: int) -> None:
             super().__init__(sender)
         main
+        main
             self.seconds = seconds
 
     def compose(self) -> ComposeResult:
@@ -92,6 +113,38 @@ class TimerMenu(Vertical):
         yield Button("7m", id="t420")
         yield Button("11m", id="t660")
         yield Input(placeholder="Custom (e.g. 90, 2m)", id="custom")
+
+         9bfmem-codex/design-python-baseret-notesystem-med-timer
+    def on_mount(self) -> None:
+        """Cache child widgets for focus handling and focus the first item."""
+        self._items = [
+            self.query_one("#t30", Button),
+            self.query_one("#t180", Button),
+            self.query_one("#t420", Button),
+            self.query_one("#t660", Button),
+            self.query_one("#custom", Input),
+        ]
+        self._selected = 0
+        self._items[0].focus()
+
+    def action_focus_up(self) -> None:
+        """Move focus to the previous widget in the menu."""
+        self._selected = (self._selected - 1) % len(self._items)
+        self._items[self._selected].focus()
+
+    def action_focus_down(self) -> None:
+        """Move focus to the next widget in the menu."""
+        self._selected = (self._selected + 1) % len(self._items)
+        self._items[self._selected].focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
+        seconds = int(event.button.id[1:])
+        self.post_message(self.SetTime(seconds))
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:  # type: ignore[override]
+        seconds = parse_time_spec(event.value)
+        if seconds is not None:
+            self.post_message(self.SetTime(seconds))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
         seconds = int(event.button.id[1:])
@@ -108,6 +161,7 @@ class TimerMenu(Vertical):
             self.post_message(self.SetTime(seconds))
 
             self.post_message(self.SetTime(self, seconds))
+        main
         main
         else:
             self.app.bell()
@@ -135,6 +189,13 @@ class NoteApp(App[None]):
         self.menu.visible = False
         yield self.menu
 
+        9bfmem-codex/design-python-baseret-notesystem-med-timer
+    def on_mount(self) -> None:
+        """Focus the notes area when the application starts."""
+        self.query_one("#notes", TextArea).focus()
+  
+  
+        main
     def watch_countdown(self, countdown: CountdownState) -> None:
         """Update the UI whenever the countdown changes."""
         self.timer_display.update_time(countdown.remaining)
@@ -147,6 +208,17 @@ class NoteApp(App[None]):
         self.menu_visible = not self.menu_visible
         self.menu.visible = self.menu_visible
         self.timer_display.display = self.menu_visible or self.countdown.remaining > 0
+        9bfmem-codex/design-python-baseret-notesystem-med-timer
+        # When the menu becomes visible, move focus to it so the user can
+        # navigate with the arrow keys immediately. Otherwise return focus to
+        # the notes area.
+        if self.menu_visible:
+            self.menu._selected = 0
+            self.menu._items[0].focus()
+        else:
+            self.query_one("#notes", TextArea).focus()
+  
+        main
 
     def action_reset_timer(self) -> None:
         """Reset or stop the timer depending on how quickly this action is called."""
