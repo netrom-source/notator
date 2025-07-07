@@ -373,6 +373,10 @@ class NoteApp(App[None]):
         self.unsaved_map: dict[str, bool] = {}
         # Map tab id to file path (None for new unsaved files)
         self.file_map: dict[str, Path | None] = {}
+        # Keep a reference to each NoteTextArea widget by tab id so we can
+        # reliably focus them without querying, which may fail before the
+        # widgets are fully mounted.
+        self.textareas: dict[str, NoteTextArea] = {}
         # Counter for generating unique tab ids
         self.tab_counter = 2
         # Track when Ctrl+S was last pressed to support rename on double press
@@ -433,6 +437,7 @@ class NoteApp(App[None]):
                 self.tabs.add_pane(pane)
                 self.file_map[tab_id] = path
                 self.unsaved_map[tab_id] = False
+                self.textareas[tab_id] = note_area
             self.tab_counter = len(data["tabs"])
             active = data.get("active", data["tabs"][0]["id"])
             self.tabs.active = active
@@ -448,13 +453,15 @@ class NoteApp(App[None]):
                 self.tabs.add_pane(pane)
                 self.unsaved_map[tab_id] = False
                 self.file_map[tab_id] = path
+                self.textareas[tab_id] = note_area
             self.tab_counter = len(INITIAL_FILES)
             self.tabs.active = "tab1"
 
         # Focus the active tab's text area
         active = self.tabs.active
-        if active:
-            self.tabs.get_pane(active).query_one(NoteTextArea).focus()
+        if active and active in self.textareas:
+            # Focus after mount to avoid "NoMatches" errors
+            self.call_later(self.textareas[active].focus)
         self.status.update("Saved")
         self.title = APP_TITLE
         from textual.widgets._tabbed_content import ContentTabs
@@ -534,7 +541,9 @@ class NoteApp(App[None]):
             # Fade the menu out and return focus to the notes
             self.menu.hide_menu()
             active = self.tabs.active or "tab1"
-            self.tabs.get_pane(active).query_one(NoteTextArea).focus()
+            note_area = self.textareas.get(active)
+            if note_area:
+                note_area.focus()
 
     def action_close_menu(self) -> None:
         # Close the timer menu if it is currently visible.
@@ -560,7 +569,9 @@ class NoteApp(App[None]):
 
         now = time.time()
         active = self.tabs.active or "tab1"
-        textarea = self.tabs.get_pane(active).query_one(NoteTextArea)
+        textarea = self.textareas.get(active)
+        if textarea is None:
+            return
         path = self.file_map.get(active)
         double = now - self._last_save_time < 2
         self._last_save_time = now
@@ -618,6 +629,7 @@ class NoteApp(App[None]):
         self.tabs.add_pane(pane)
         self.file_map[tab_id] = None
         self.unsaved_map[tab_id] = False
+        self.textareas[tab_id] = note_area
         self.tabs.active = tab_id
         # Focusing the widget instance avoids query errors before it is mounted.
         note_area.focus()
@@ -657,6 +669,7 @@ class NoteApp(App[None]):
         self.tabs.add_pane(pane)
         self.file_map[tab_id] = path
         self.unsaved_map[tab_id] = False
+        self.textareas[tab_id] = note_area
         self.tabs.active = tab_id
         note_area.focus()
         self.open_menu_visible = False
@@ -669,7 +682,9 @@ class NoteApp(App[None]):
         # Ensure the extension .txt exists for simplicity
         if path.suffix == "":
             path = path.with_suffix(".txt")
-        textarea = self.tabs.get_pane(active).query_one(NoteTextArea)
+        textarea = self.textareas.get(active)
+        if textarea is None:
+            return
         with path.open("w", encoding="utf-8") as f:
             f.write(textarea.text)
         self.file_map[active] = path
@@ -689,13 +704,16 @@ class NoteApp(App[None]):
         self.tabs.remove_pane(active)
         self.unsaved_map.pop(active, None)
         self.file_map.pop(active, None)
+        self.textareas.pop(active, None)
         # Choose which tab becomes active after closing
         if panes:
             panes.remove(active)
             new_index = index - 1 if index > 0 else 0
             new_active = panes[new_index]
             self.tabs.active = new_active
-            self.tabs.get_pane(new_active).query_one(NoteTextArea).focus()
+            note_area = self.textareas.get(new_active)
+            if note_area:
+                note_area.focus()
         self.notification.show("Tab closed")
         self.save_tab_state()
 
@@ -766,7 +784,9 @@ class NoteApp(App[None]):
         # Update status when switching tabs.
         active = message.pane.id
         self.unsaved = self.unsaved_map.get(active, False)
-        message.pane.query_one(NoteTextArea).focus()
+        note_area = self.textareas.get(active)
+        if note_area:
+            note_area.focus()
 
 
 if __name__ == "__main__":
