@@ -8,7 +8,8 @@ Screen {
 #notes_container {
     align: center middle;
     width: 100%;
-    height: 100%;
+    /* Take up the space between the timer display and status bar */
+    height: 1fr;
 }
 
 #notes {
@@ -30,6 +31,7 @@ Screen {
 #timer_menu {
     layer: overlay;
     width: 30%;
+    height: 70%;
     border: solid purple;
     background: #202020;
     padding: 1 2;

@@ -6,6 +6,8 @@ This module implements a Textual application that lets users write notes in a
 text area while optionally running a countdown timer. The timer menu can be
 toggled with ``Ctrl+T`` and offers a few preset durations as well as a custom
 input field. ``Ctrl+R`` resets the timer or stops it if pressed twice quickly.
+``Ctrl+E`` toggles *Hemmingway mode*, which prevents deleting text or moving the
+cursor backwards.
 
 The application is fully standalone and heavily commented so that it is easy to
 understand and extend.
@@ -21,6 +23,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Vertical
 from textual.message import Message
 from textual.reactive import reactive
+from textual import events
 from textual.widgets import Button, Input, Static, TextArea
 
 # Name of the file used to store notes on disk. ``Path`` is used so it works
@@ -154,12 +157,17 @@ class NoteApp(App[None]):
         ("ctrl+t", "toggle_menu", "Timer Menu"),
         ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
         ("ctrl+s", "save_notes", "Save Notes"),
+        ("ctrl+e", "toggle_hemmingway", "Hemmingway Mode"),
+        ("ctrl+h", "noop", ""),
+        ("ctrl+k", "noop", ""),
+        ("ctrl+m", "noop", ""),
         ("escape", "close_menu", "Close Menu"),
     ]
 
     countdown = reactive(CountdownState())
     menu_visible = reactive(False)
     unsaved = reactive(False)
+    hemingway = reactive(False)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -206,6 +214,12 @@ class NoteApp(App[None]):
             self.status.remove_class("modified")
             self.title = APP_TITLE
 
+    def on_key(self, event: events.Key) -> None:
+        """Restrict certain keys when Hemingway mode is active."""
+        if self.hemingway and event.key in {"backspace", "delete", "left"}:
+            event.prevent_default()
+            event.stop()
+
     def action_toggle_menu(self) -> None:
         """Show or hide the timer menu."""
         self.menu_visible = not self.menu_visible
@@ -249,6 +263,16 @@ class NoteApp(App[None]):
             f.write(text)
         self.unsaved = False
         self.notify("Notes saved")
+
+    def action_toggle_hemmingway(self) -> None:
+        """Toggle Hemingway mode, which disables deletions and backtracking."""
+        self.hemingway = not self.hemingway
+        state = "ON" if self.hemingway else "OFF"
+        self.notify(f"Hemmingway mode {state}")
+
+    def action_noop(self) -> None:
+        """An action that intentionally does nothing."""
+        pass
 
     def start_timer(self, seconds: int) -> None:
         """Begin counting down from the given number of seconds."""
