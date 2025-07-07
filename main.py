@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-"""Simple note-taking app with a timer, built from scratch.
+# ---------------------------------------------------------------------------
+# Simple note-taking application with an integrated timer
+# ---------------------------------------------------------------------------
+#
+# The code in this file defines a Textual based program where the user can type
+# notes while optionally running a countdown timer.  The timer can be opened
+# with ``Ctrl+T``.  When a time is chosen either from one of the preset buttons
+# or by entering a custom value, the countdown starts automatically.  The timer
+# may be reset with ``Ctrl+R`` and stopped by pressing ``Ctrl+R`` again within
+# two seconds.  All user interface styling is provided via ``style.css`` so the
+# appearance can be customised without modifying the Python code.
+#
+# The program is thoroughly annotated with comments so that it is easy to
+# understand and extend.
 
-This module implements a Textual application that lets users write notes in a
-text area while optionally running a countdown timer. The timer menu can be
-toggled with ``Ctrl+T`` and offers a few preset durations as well as a custom
-input field. ``Ctrl+R`` resets the timer or stops it if pressed twice quickly.
-``Ctrl+G`` toggles *Hemmingway mode*, which prevents deleting text or moving the
-cursor backwards.
-
-The application is fully standalone and heavily commented so that it is easy to
-understand and extend.
-"""
 
 import re
 import time
@@ -47,20 +50,14 @@ APP_TITLE = "NoteApp"
 
 
 def parse_time_spec(value: str) -> Optional[int]:
-    """Convert a textual time specification to seconds.
-
-    The helper accepts plain numbers (interpreted as seconds) as well as values
-    suffixed with ``m`` to denote minutes. Whitespace around the value is
-    ignored, so ``" 2m "`` is valid. If the text cannot be parsed the function
-    returns ``None``.
-
-    Args:
-        value: Text entered by the user.
-
-    Returns:
-        The number of seconds represented by the value or ``None`` if parsing
-        fails.
-    """
+    # Convert a textual time specification to seconds.
+    #
+    # The value may be a plain number, meaning seconds, or it can end with
+    # ``m`` to indicate minutes (for example ``"2m"`` is two minutes).  Any
+    # whitespace around the value is ignored.  If parsing fails the function
+    # returns ``None`` so the caller can react accordingly.
+    #
+    # ``value`` -- the text provided by the user.
 
     match = re.fullmatch(r"(\d+)(m?)", value.strip().lower())
     if not match:
@@ -74,7 +71,7 @@ def parse_time_spec(value: str) -> Optional[int]:
 
 @dataclass
 class CountdownState:
-    """Keep track of the current countdown."""
+    # Keep track of the current countdown.
 
     duration: int = 0  # total duration in seconds
     remaining: int = 0  # seconds left
@@ -82,7 +79,7 @@ class CountdownState:
 
 
 class TimerDisplay(Static):
-    """Widget that shows the remaining time in ``mm:ss`` format."""
+    # Widget that shows the remaining time in ``mm:ss`` format.
 
     def update_time(self, seconds: int) -> None:
         minutes, secs = divmod(max(0, seconds), 60)
@@ -90,7 +87,7 @@ class TimerDisplay(Static):
 
 
 class NoteInput(Input):
-    """Input widget without conflicting control-key shortcuts."""
+    # Input widget without conflicting control-key shortcuts.
 
     # Filter out bindings that would otherwise consume Ctrl+H, Ctrl+K or
     # Ctrl+M. These shortcuts are removed so they can't trigger Textual's
@@ -104,7 +101,7 @@ class NoteInput(Input):
 
 
 class NoteTextArea(TextArea):
-    """Text area widget with custom key bindings."""
+    # Text area widget with custom key bindings.
 
     # Like ``NoteInput`` remove bindings for Ctrl+H, Ctrl+K and Ctrl+M. This
     # prevents them from triggering delete or other commands that might
@@ -117,7 +114,7 @@ class NoteTextArea(TextArea):
     ]
 
     def on_key(self, event: events.Key) -> None:
-        """Swallow unwanted shortcuts before Textual handles them."""
+        # Swallow unwanted shortcuts before Textual handles them.
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m"}:
             event.stop()
             return
@@ -125,7 +122,7 @@ class NoteTextArea(TextArea):
 
 
 class TimerMenu(Vertical):
-    """The pop-up menu with preset buttons and a custom input field."""
+    # The pop-up menu with preset buttons and a custom input field.
 
     # Allow navigating the menu using the arrow keys. Each key is bound to an
     # action method defined below. These actions will move focus between the
@@ -137,7 +134,7 @@ class TimerMenu(Vertical):
     ]
 
     class SetTime(Message):
-        """Message sent when the user selects a duration."""
+        # Message sent when the user selects a duration.
 
         def __init__(self, seconds: int) -> None:
             super().__init__()
@@ -151,7 +148,7 @@ class TimerMenu(Vertical):
         yield NoteInput(placeholder="Custom (e.g. 90, 2m)", id="custom")
 
     def on_mount(self) -> None:
-        """Cache child widgets for focus handling and focus the first item."""
+        # Cache child widgets for focus handling and focus the first item.
         self._items = [
             self.query_one("#t30", Button),
             self.query_one("#t180", Button),
@@ -163,17 +160,17 @@ class TimerMenu(Vertical):
         self._items[0].focus()
 
     def action_focus_up(self) -> None:
-        """Move focus to the previous widget in the menu."""
+        # Move focus to the previous widget in the menu.
         self._selected = (self._selected - 1) % len(self._items)
         self._items[self._selected].focus()
 
     def action_focus_down(self) -> None:
-        """Move focus to the next widget in the menu."""
+        # Move focus to the next widget in the menu.
         self._selected = (self._selected + 1) % len(self._items)
         self._items[self._selected].focus()
 
     def action_close_menu(self) -> None:
-        """Close the timer menu via the Escape key."""
+        # Close the timer menu via the Escape key.
         self.app.action_toggle_menu()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
@@ -195,7 +192,7 @@ class TimerMenu(Vertical):
 
 
 class NoteApp(App[None]):
-    """Main application class."""
+    # Main application class.
 
     CSS_PATH = "style.css"
 
@@ -223,7 +220,7 @@ class NoteApp(App[None]):
         self.unsaved_map: dict[str, bool] = {}
 
     def compose(self) -> ComposeResult:
-        """Create child widgets."""
+        # Create child widgets.
         self.timer_display = TimerDisplay(id="timer_display")
         yield self.timer_display
         with Container(id="notes_container"):
@@ -237,7 +234,7 @@ class NoteApp(App[None]):
         yield self.status
 
     def on_mount(self) -> None:
-        """Load notes for all tabs and focus the active one."""
+        # Load notes for all tabs and focus the active one.
         self.tabs = self.query_one("#tabs", TabbedContent)
         # Load each note file into its tabbed text area
         for tab_id, path in NOTE_FILES.items():
@@ -255,14 +252,14 @@ class NoteApp(App[None]):
         self.title = APP_TITLE
 
     def watch_countdown(self, countdown: CountdownState) -> None:
-        """Update the timer display whenever the countdown changes."""
+        # Update the timer display whenever the countdown changes.
         self.timer_display.update_time(countdown.remaining)
         self.timer_display.display = (
             self.menu_visible or countdown.remaining > 0
         )
 
     def watch_unsaved(self, unsaved: bool) -> None:
-        """Update the status bar whenever the save state changes."""
+        # Update the status bar whenever the save state changes.
         if unsaved:
             self.status.update("Unsaved changes")
             self.status.add_class("modified")
@@ -274,7 +271,7 @@ class NoteApp(App[None]):
             self.title = APP_TITLE
 
     def on_key(self, event: events.Key) -> None:
-        """Handle global key behaviour and Hemingway restrictions."""
+        # Handle global key behaviour and Hemingway restrictions.
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m"}:
             # Explicitly swallow these shortcuts so Textual's defaults don't run
             event.stop()
@@ -284,7 +281,7 @@ class NoteApp(App[None]):
             event.stop()
 
     def action_toggle_menu(self) -> None:
-        """Show or hide the timer menu."""
+        # Show or hide the timer menu.
         self.menu_visible = not self.menu_visible
         self.menu.visible = self.menu_visible
         self.timer_display.display = self.menu_visible or self.countdown.remaining > 0
@@ -299,12 +296,12 @@ class NoteApp(App[None]):
             self.tabs.get_pane(active).query_one(NoteTextArea).focus()
 
     def action_close_menu(self) -> None:
-        """Close the timer menu if it is currently visible."""
+        # Close the timer menu if it is currently visible.
         if self.menu_visible:
             self.action_toggle_menu()
 
     def action_reset_timer(self) -> None:
-        """Reset or stop the timer depending on how quickly this action is called."""
+        # Reset or stop the timer depending on how quickly this action is called.
         now = time.time()
         # If the timer is running and we pressed reset less than two seconds ago
         # we interpret that as a request to stop the countdown entirely.
@@ -318,7 +315,7 @@ class NoteApp(App[None]):
             self.start_timer(self.countdown.duration)
 
     def action_save_notes(self) -> None:
-        """Save the current notes to disk."""
+        # Save the current notes to disk.
         # TextArea stores the current content in the ``text`` attribute.
         # Using ``text`` ensures compatibility with future versions of
         # Textual and avoids attribute errors.
@@ -333,17 +330,17 @@ class NoteApp(App[None]):
         self.notify("Notes saved")
 
     def action_toggle_hemmingway(self) -> None:
-        """Toggle Hemingway mode, which disables deletions and backtracking."""
+        # Toggle Hemingway mode, which disables deletions and backtracking.
         self.hemingway = not self.hemingway
         state = "ON" if self.hemingway else "OFF"
         self.notify(f"Hemmingway mode {state}")
 
     def action_noop(self) -> None:
-        """An action that intentionally does nothing."""
+        # An action that intentionally does nothing.
         pass
 
     def action_prev_tab(self) -> None:
-        """Activate the previous note tab."""
+        # Activate the previous note tab.
         tabs = list(NOTE_FILES.keys())
         active = self.tabs.active or tabs[0]
         index = tabs.index(active)
@@ -351,7 +348,7 @@ class NoteApp(App[None]):
         self.tabs.active = new_active
 
     def action_next_tab(self) -> None:
-        """Activate the next note tab."""
+        # Activate the next note tab.
         tabs = list(NOTE_FILES.keys())
         active = self.tabs.active or tabs[0]
         index = tabs.index(active)
@@ -359,7 +356,7 @@ class NoteApp(App[None]):
         self.tabs.active = new_active
 
     def start_timer(self, seconds: int) -> None:
-        """Begin counting down from the given number of seconds."""
+        # Begin counting down from the given number of seconds.
         self.countdown = CountdownState(
             duration=seconds,
             remaining=seconds,
@@ -374,7 +371,7 @@ class NoteApp(App[None]):
         self.timer_display.remove_class("blink")
 
     def stop_timer(self) -> None:
-        """Stop the timer and hide the display if the menu isn't open."""
+        # Stop the timer and hide the display if the menu isn't open.
         if hasattr(self, "_tick_handle"):
             self._tick_handle.stop()
         self.countdown.remaining = 0
@@ -384,7 +381,7 @@ class NoteApp(App[None]):
         self.notify("Timer stopped")
 
     def tick(self) -> None:
-        """Called every second to update the countdown."""
+        # Called every second to update the countdown.
         # Reduce the remaining time and update the display. When the countdown
         # reaches zero a blink effect is applied and the timer is stopped.
         if self.countdown.remaining > 0:
@@ -401,25 +398,24 @@ class NoteApp(App[None]):
                 self._tick_handle.stop()
 
     def on_text_area_changed(self, event: TextArea.Changed) -> None:  # type: ignore[override]
-        """Mark the current tab as modified when its content changes."""
+        # Mark the current tab as modified when its content changes.
         active = self.tabs.active or "tab1"
         self.unsaved_map[active] = True
         self.unsaved = True
 
     def on_timer_menu_set_time(self, message: TimerMenu.SetTime) -> None:
-        """Handle the duration chosen in the timer menu.
-
-        Starting the timer here ensures the countdown begins immediately after
-        the user selects a preset or enters a custom time. If the menu is
-        currently visible it is hidden again so focus returns to the notes.
-        """
+        # Handle the duration chosen in the timer menu.
+        #
+        # Starting the timer here ensures the countdown begins immediately after
+        # the user selects a preset or enters a custom time.  If the menu is
+        # currently visible it is hidden again so focus returns to the notes.
 
         self.start_timer(message.seconds)
         if self.menu_visible:
             self.action_toggle_menu()
 
     def on_tabbed_content_tab_activated(self, message: TabbedContent.TabActivated) -> None:
-        """Update status when switching tabs."""
+        # Update status when switching tabs.
         active = message.pane.id
         self.unsaved = self.unsaved_map.get(active, False)
         message.pane.query_one(NoteTextArea).focus()
