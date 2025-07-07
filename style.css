@@ -2,7 +2,8 @@
 
 Screen {
     align: center middle;
-    background: black;
+    background: #1a1a1a;
+    color: #e0e0e0;
 }
 
 #notes_container {
@@ -17,44 +18,46 @@ Screen {
        window size without large margins. */
     width: 100%;
     height: 100%;
-    border: solid green;
+    border: solid #666666;
+    background: #222222;
 }
 
 #timer_display {
     dock: top;
     height: 1;
     content-align: center middle;
-    background: darkgreen;
-    color: white;
+    background: #444444;
+    color: #ffffff;
 }
 
 #timer_menu {
     layer: overlay;
     width: 30%;
     height: 70%;
-    border: solid purple;
-    background: #202020;
+    border: solid #888888;
+    background: #303030;
     padding: 1 2;
     align: center middle;
 }
 
 Button {
     width: 100%;
-    margin: 1 0;
+    margin: 0 0 1 0;
+    height: 3;
 }
 
 Button:focus {
-    background: purple;
-    color: white;
+    background: #666666;
+    color: #ffffff;
 }
 
 Input:focus {
-    border: solid purple;
+    border: solid #888888;
 }
 
 /* Blink effect for the timer display when the countdown finishes */
 #timer_display.blink {
-    background: red;
+    background: #800000;
     text-style: blink;
 }
 
@@ -63,10 +66,10 @@ Input:focus {
     dock: bottom;
     height: 1;
     content-align: center middle;
-    background: #303030;
-    color: white;
+    background: #202020;
+    color: #cccccc;
 }
 
 #status_display.modified {
-    background: #804000;
+    background: #705050;
 }

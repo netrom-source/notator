@@ -14,8 +14,9 @@ This project contains a minimal note-taking application written with [Textual](h
 5. Press `Ctrl+R` to restart the timer. Press it again within two seconds to stop the countdown.
 6. Save your notes with `Ctrl+S`. The status bar at the bottom shows whether your notes are saved or have unsaved changes.
    The window title also displays an asterisk when unsaved changes are present.
-7. Toggle **Hemmingway mode** with `Ctrl+E` to disable deleting and moving the cursor backwards.
+7. Toggle **Hemmingway mode** with `Ctrl+Y` to disable deleting and moving the cursor backwards.
 
 Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled so they no longer trigger Textual's built-in commands.
 
-All styling can be changed in `style.css`.
+All styling can be changed in `style.css`. The default sheet defines a sleek
+gray theme, but you are free to customize the colors to your liking.

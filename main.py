@@ -6,7 +6,7 @@ This module implements a Textual application that lets users write notes in a
 text area while optionally running a countdown timer. The timer menu can be
 toggled with ``Ctrl+T`` and offers a few preset durations as well as a custom
 input field. ``Ctrl+R`` resets the timer or stops it if pressed twice quickly.
-``Ctrl+E`` toggles *Hemmingway mode*, which prevents deleting text or moving the
+``Ctrl+Y`` toggles *Hemmingway mode*, which prevents deleting text or moving the
 cursor backwards.
 
 The application is fully standalone and heavily commented so that it is easy to
@@ -81,25 +81,28 @@ class TimerDisplay(Static):
 class NoteInput(Input):
     """Input widget without conflicting control-key shortcuts."""
 
-    # Filter out bindings that would otherwise consume Ctrl+E or Ctrl+K which
-    # are used by the application for other purposes. Copy all other bindings
-    # so the widget retains normal behaviour.
+    # Filter out bindings that would otherwise consume Ctrl+H, Ctrl+K or
+    # Ctrl+M. These shortcuts are removed so they can't trigger Textual's
+    # built-in commands and will instead be handled (or ignored) by the
+    # application itself.
     BINDINGS = [
         b
         for b in Input.BINDINGS
-        if "ctrl+k" not in b.key and "ctrl+e" not in b.key
+        if "ctrl+h" not in b.key and "ctrl+k" not in b.key and "ctrl+m" not in b.key
     ]
 
 
 class NoteTextArea(TextArea):
     """Text area widget with custom key bindings."""
 
-    # Like ``NoteInput`` remove bindings for Ctrl+E and Ctrl+K so they can be
-    # used at the application level. All other default shortcuts are preserved.
+    # Like ``NoteInput`` remove bindings for Ctrl+H, Ctrl+K and Ctrl+M. This
+    # prevents them from triggering delete or other commands that might
+    # conflict with the application's own shortcuts. All other default
+    # behaviour is left intact.
     BINDINGS = [
         b
         for b in TextArea.BINDINGS
-        if "ctrl+k" not in b.key and "ctrl+e" not in b.key
+        if "ctrl+h" not in b.key and "ctrl+k" not in b.key and "ctrl+m" not in b.key
     ]
 
 
@@ -182,7 +185,7 @@ class NoteApp(App[None]):
         ("ctrl+t", "toggle_menu", "Timer Menu"),
         ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
         ("ctrl+s", "save_notes", "Save Notes"),
-        ("ctrl+e", "toggle_hemmingway", "Hemmingway Mode"),
+        ("ctrl+y", "toggle_hemmingway", "Hemmingway Mode"),
         ("ctrl+h", "noop", ""),
         ("ctrl+k", "noop", ""),
         ("ctrl+m", "noop", ""),
