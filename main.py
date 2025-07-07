@@ -346,7 +346,13 @@ class NoteApp(App[None]):
         self.unsaved = True
 
     def on_timer_menu_set_time(self, message: TimerMenu.SetTime) -> None:
-        """Start the timer when the user picks a duration."""
+        """Handle the duration chosen in the timer menu.
+
+        Starting the timer here ensures the countdown begins immediately after
+        the user selects a preset or enters a custom time. If the menu is
+        currently visible it is hidden again so focus returns to the notes.
+        """
+
         self.start_timer(message.seconds)
         if self.menu_visible:
             self.action_toggle_menu()
