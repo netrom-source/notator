@@ -32,6 +32,7 @@ Button {
     width: 100%;
     margin: 1 0;
 }
+     9bfmem-codex/design-python-baseret-notesystem-med-timer
 
 Button:focus {
     background: purple;
@@ -41,3 +42,5 @@ Button:focus {
 Input:focus {
     border: solid purple;
 }
+  
+  main
