@@ -465,12 +465,15 @@ class NoteApp(App[None]):
         """Create a new empty tab."""
         self.tab_counter += 1
         tab_id = f"tab{self.tab_counter}"
-        pane = TabPane(f"Note {self.tab_counter}", NoteTextArea(classes="notes"), id=tab_id)
+        # Instantiate the text area separately so we can focus it directly.
+        note_area = NoteTextArea(classes="notes")
+        pane = TabPane(f"Note {self.tab_counter}", note_area, id=tab_id)
         self.tabs.add_pane(pane)
         self.file_map[tab_id] = None
         self.unsaved_map[tab_id] = False
         self.tabs.active = tab_id
-        pane.query_one(NoteTextArea).focus()
+        # Focusing the widget instance avoids query errors before it is mounted.
+        note_area.focus()
 
     def action_open_file(self) -> None:
         """Prompt for a file path to open in a new tab."""
@@ -496,12 +499,14 @@ class NoteApp(App[None]):
             return
         self.tab_counter += 1
         tab_id = f"tab{self.tab_counter}"
-        pane = TabPane(path.name, NoteTextArea(text=text, classes="notes"), id=tab_id)
+        # Create the text area separately to focus it after adding the pane.
+        note_area = NoteTextArea(text=text, classes="notes")
+        pane = TabPane(path.name, note_area, id=tab_id)
         self.tabs.add_pane(pane)
         self.file_map[tab_id] = path
         self.unsaved_map[tab_id] = False
         self.tabs.active = tab_id
-        pane.query_one(NoteTextArea).focus()
+        note_area.focus()
         self.open_menu_visible = False
 
     def action_close_tab(self) -> None:
