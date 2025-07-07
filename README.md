@@ -6,8 +6,9 @@ This project contains a minimal note-taking application written with [Textual](h
 
 1. Install dependencies with `pip install textual`.
 2. Run the app using `python main.py`.
-3. Two note tabs are available. Switch between them by clicking the tab labels
-   or pressing `Ctrl+PageUp` / `Ctrl+PageDown`.
+3. Create additional tabs with `Ctrl+N` or open an existing file with `Ctrl+O`.
+   Close the active tab with `Ctrl+W` and hide/show the tab bar with `Ctrl+B`.
+   Switch between tabs by clicking the labels or pressing `Ctrl+PageUp` / `Ctrl+PageDown`.
 4. Toggle the timer menu with `Ctrl+T`.
 5. Use the arrow keys to move between the timer options and press `Enter` to
    select a preset or submit a custom value (e.g. `90` or `2m`). The menu
@@ -23,5 +24,6 @@ Each tab stores its text in a separate file (`notes1.txt` and `notes2.txt`). Swi
 Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled with high priority so they no longer trigger Textual's built-in commands.
 
 All styling can be changed in `style.css`. The default sheet now uses muted
-earth tones with a dusty green timer bar. Toast notifications feature a subtle
-border and you can tweak the palette to suit your taste.
+earth tones with a dusty green timer bar. Notification messages slide up from the
+bottom and fade away after a short delay. Adjust the palette and animations in
+the CSS as you see fit.

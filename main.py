@@ -37,9 +37,9 @@ from textual.widgets import (
     TabPane,
 )
 
-# Name of the file used to store notes on disk. ``Path`` is used so it works
-# across different operating systems and makes future modifications easy.
-NOTE_FILES = {
+# Initial note files stored on disk. ``Path`` works across operating systems
+# and makes future modifications easy. These are loaded on startup.
+INITIAL_FILES = {
     "tab1": Path("notes1.txt"),
     "tab2": Path("notes2.txt"),
 }
@@ -202,6 +202,67 @@ class TimerMenu(Vertical):
             self.app.bell()
 
 
+class FileOpenMenu(Vertical):
+    """Overlay menu to prompt for a file path when opening notes."""
+
+    BINDINGS = [
+        ("escape", "close_menu", "Cancel"),
+    ]
+
+    class OpenFile(Message):
+        """Message sent with the chosen file path."""
+
+        def __init__(self, path: str) -> None:
+            super().__init__()
+            self.path = path
+
+    def compose(self) -> ComposeResult:
+        yield NoteInput(placeholder="Path to file", id="file_path")
+
+    def on_mount(self) -> None:
+        # Focus the input when the menu appears
+        self.query_one(NoteInput).focus()
+
+    def action_close_menu(self) -> None:
+        # Hide the menu without opening a file
+        self.app.action_toggle_open_menu()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:  # type: ignore[override]
+        # Send the chosen path back to the main application
+        if event.value:
+            self.post_message(self.OpenFile(event.value))
+        else:
+            self.app.bell()
+
+
+class NotificationBar(Static):
+    """Single-line area at the bottom for transient messages."""
+
+    def on_mount(self) -> None:
+        # Start hidden below the screen with zero opacity
+        self.styles.offset = (0, 1)
+        self.styles.opacity = 0
+        self.display = False
+
+    def show(self, message: str, duration: float = 2.0) -> None:
+        """Display a message then fade it out."""
+
+        self.update(message)
+        self.display = True
+        self.styles.opacity = 1
+        # Animate the bar sliding up
+        self.animate("offset", (0, 0), duration=0.2)
+
+        def fade() -> None:
+            # Fade the bar away and slide it down again
+            self.animate("opacity", 0.0, duration=0.5)
+            self.animate("offset", (0, 1), duration=0.5, on_complete=self._hide)
+
+        self.set_timer(duration, fade)
+
+    def _hide(self) -> None:
+        self.display = False
+
 class NoteApp(App[None]):
     # Main application class.
 
@@ -212,6 +273,10 @@ class NoteApp(App[None]):
         ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
         ("ctrl+s", "save_notes", "Save Notes"),
         ("ctrl+g", "toggle_hemmingway", "Hemmingway Mode"),
+        ("ctrl+n", "new_tab", "New Tab"),
+        ("ctrl+o", "open_file", "Open File"),
+        ("ctrl+w", "close_tab", "Close Tab"),
+        ("ctrl+b", "toggle_tab_bar", "Toggle Tabs"),
         Binding("ctrl+h", "noop", "", show=False, priority=True),
         Binding("ctrl+k", "noop", "", show=False, priority=True),
         Binding("ctrl+m", "noop", "", show=False, priority=True),
@@ -222,13 +287,19 @@ class NoteApp(App[None]):
 
     countdown = reactive(CountdownState())
     menu_visible = reactive(False)
+    open_menu_visible = reactive(False)
     unsaved = reactive(False)
     hemingway = reactive(False)
+    tab_bar_visible = reactive(True)
 
     def __init__(self) -> None:
         super().__init__()
         # Track unsaved state for each tab individually
         self.unsaved_map: dict[str, bool] = {}
+        # Map tab id to file path (None for new unsaved files)
+        self.file_map: dict[str, Path | None] = {}
+        # Counter for generating unique tab ids
+        self.tab_counter = 2
 
     def compose(self) -> ComposeResult:
         # Create child widgets.
@@ -241,14 +312,19 @@ class NoteApp(App[None]):
         self.menu = TimerMenu(id="timer_menu")
         self.menu.visible = False
         yield self.menu
+        self.open_menu = FileOpenMenu(id="open_menu")
+        self.open_menu.visible = False
+        yield self.open_menu
         self.status = Static(id="status_display")
         yield self.status
+        self.notification = NotificationBar(id="notification_bar")
+        yield self.notification
 
     def on_mount(self) -> None:
         # Load notes for all tabs and focus the active one.
         self.tabs = self.query_one("#tabs", TabbedContent)
         # Load each note file into its tabbed text area
-        for tab_id, path in NOTE_FILES.items():
+        for tab_id, path in INITIAL_FILES.items():
             textarea = self.tabs.get_pane(tab_id).query_one(NoteTextArea)
             try:
                 with path.open("r", encoding="utf-8") as f:
@@ -256,11 +332,18 @@ class NoteApp(App[None]):
             except FileNotFoundError:
                 pass
             self.unsaved_map[tab_id] = False
+            self.file_map[tab_id] = path
+        # Counter starts after the existing tabs
+        self.tab_counter = len(INITIAL_FILES)
         # Focus the text area in the initial tab
         active = self.tabs.active or "tab1"
         self.tabs.get_pane(active).query_one(NoteTextArea).focus()
         self.status.update("Saved")
         self.title = APP_TITLE
+        # Ensure tab bar visibility flag matches widget state
+        from textual.widgets._tabbed_content import ContentTabs
+        self.tab_bar = self.tabs.query_one(ContentTabs)
+        self.tab_bar.visible = True
 
     def watch_countdown(self, countdown: CountdownState) -> None:
         # Update the timer display whenever the countdown changes.
@@ -280,6 +363,14 @@ class NoteApp(App[None]):
             self.status.update("Saved")
             self.status.remove_class("modified")
             self.title = APP_TITLE
+
+    def watch_tab_bar_visible(self, visible: bool) -> None:
+        # Show or hide the tab bar widget.
+        self.tab_bar.visible = visible
+
+    def watch_open_menu_visible(self, visible: bool) -> None:
+        # Display or hide the open-file menu.
+        self.open_menu.visible = visible
 
     def on_key(self, event: events.Key) -> None:
         # Handle global key behaviour and Hemingway restrictions.
@@ -333,18 +424,22 @@ class NoteApp(App[None]):
         active = self.tabs.active or "tab1"
         textarea = self.tabs.get_pane(active).query_one(NoteTextArea)
         text = textarea.text
-        path = NOTE_FILES[active]
+        path = self.file_map.get(active)
+        if path is None:
+            # Create a default file name if none was assigned
+            path = Path(f"notes_{active}.txt")
+            self.file_map[active] = path
         with path.open("w", encoding="utf-8") as f:
             f.write(text)
         self.unsaved_map[active] = False
         self.unsaved = False
-        self.notify("Notes saved")
+        self.notification.show("Notes saved")
 
     def action_toggle_hemmingway(self) -> None:
         # Toggle Hemingway mode, which disables deletions and backtracking.
         self.hemingway = not self.hemingway
         state = "ON" if self.hemingway else "OFF"
-        self.notify(f"Hemmingway mode {state}")
+        self.notification.show(f"Hemmingway mode {state}")
 
     def action_noop(self) -> None:
         # An action that intentionally does nothing.
@@ -352,7 +447,7 @@ class NoteApp(App[None]):
 
     def action_prev_tab(self) -> None:
         # Activate the previous note tab.
-        tabs = list(NOTE_FILES.keys())
+        tabs = list(self.file_map.keys())
         active = self.tabs.active or tabs[0]
         index = tabs.index(active)
         new_active = tabs[(index - 1) % len(tabs)]
@@ -360,11 +455,68 @@ class NoteApp(App[None]):
 
     def action_next_tab(self) -> None:
         # Activate the next note tab.
-        tabs = list(NOTE_FILES.keys())
+        tabs = list(self.file_map.keys())
         active = self.tabs.active or tabs[0]
         index = tabs.index(active)
         new_active = tabs[(index + 1) % len(tabs)]
         self.tabs.active = new_active
+
+    def action_new_tab(self) -> None:
+        """Create a new empty tab."""
+        self.tab_counter += 1
+        tab_id = f"tab{self.tab_counter}"
+        pane = TabPane(f"Note {self.tab_counter}", NoteTextArea(classes="notes"), id=tab_id)
+        self.tabs.add_pane(pane)
+        self.file_map[tab_id] = None
+        self.unsaved_map[tab_id] = False
+        self.tabs.active = tab_id
+        pane.query_one(NoteTextArea).focus()
+
+    def action_open_file(self) -> None:
+        """Prompt for a file path to open in a new tab."""
+        if not self.open_menu_visible:
+            self.open_menu_visible = True
+            self.open_menu.query_one(NoteInput).value = ""
+            self.open_menu.query_one(NoteInput).focus()
+
+    def action_toggle_open_menu(self) -> None:
+        """Hide the open-file menu."""
+        self.open_menu_visible = False
+
+    def on_file_open_menu_open_file(self, message: FileOpenMenu.OpenFile) -> None:
+        """Create a new tab from the given file path."""
+        path = Path(message.path)
+        text = ""
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                text = f.read()
+        except FileNotFoundError:
+            self.notification.show("File not found", duration=2)
+            self.open_menu_visible = False
+            return
+        self.tab_counter += 1
+        tab_id = f"tab{self.tab_counter}"
+        pane = TabPane(path.name, NoteTextArea(text=text, classes="notes"), id=tab_id)
+        self.tabs.add_pane(pane)
+        self.file_map[tab_id] = path
+        self.unsaved_map[tab_id] = False
+        self.tabs.active = tab_id
+        pane.query_one(NoteTextArea).focus()
+        self.open_menu_visible = False
+
+    def action_close_tab(self) -> None:
+        """Close the currently active tab if more than one is open."""
+        if self.tabs.tab_count <= 1:
+            return
+        active = self.tabs.active or "tab1"
+        self.tabs.remove_pane(active)
+        self.unsaved_map.pop(active, None)
+        self.file_map.pop(active, None)
+        self.notification.show("Tab closed")
+
+    def action_toggle_tab_bar(self) -> None:
+        """Toggle visibility of the tab bar."""
+        self.tab_bar_visible = not self.tab_bar_visible
 
     def start_timer(self, seconds: int) -> None:
         # Begin counting down from the given number of seconds.
@@ -377,7 +529,7 @@ class NoteApp(App[None]):
         if hasattr(self, "_tick_handle"):
             self._tick_handle.stop()
         self._tick_handle = self.set_interval(1, self.tick)
-        self.notify("Timer started")
+        self.notification.show("Timer started")
         # Remove any previous blink class in case the timer is restarted
         self.timer_display.remove_class("blink")
 
@@ -389,7 +541,7 @@ class NoteApp(App[None]):
         self.timer_display.update_time(0)
         self.timer_display.display = self.menu_visible
         self.timer_display.remove_class("blink")
-        self.notify("Timer stopped")
+        self.notification.show("Timer stopped")
 
     def tick(self) -> None:
         # Called every second to update the countdown.
@@ -400,7 +552,7 @@ class NoteApp(App[None]):
             self.timer_display.update_time(self.countdown.remaining)
             if self.countdown.remaining == 0:
                 self.timer_display.add_class("blink")
-                self.notify("Time's up!")
+                self.notification.show("Time's up!")
         else:
             # Once the countdown reaches zero keep showing the timer only if
             # the menu is visible and stop further updates.

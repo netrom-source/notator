@@ -50,6 +50,16 @@ TabPane {
     align: center middle;
 }
 
+#open_menu {
+    layer: overlay;
+    width: 40%;
+    height: 3;
+    border: solid #888888;
+    background: #303030;
+    padding: 1 2;
+    align: center middle;
+}
+
 Button {
     width: 100%;
     margin: 0 0 1 0;
@@ -87,13 +97,15 @@ Input:focus {
     background: #705050;
 }
 
-/* Toast notifications with a subtle border */
-Toast {
-    background: #353535;
-    border: tall #3d4b39;
-    color: #f0f0f0;
-}
 
-Toast.-error {
-    background: #660000;
+/* Notification bar at bottom */
+#notification_bar {
+    dock: bottom;
+    height: 1;
+    width: 100%;
+    background: #353535;
+    color: #ffffff;
+    border: tall #3d4b39;
+    offset: 0 1;
+    opacity: 0;
 }
