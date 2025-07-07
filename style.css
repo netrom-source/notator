@@ -1,0 +1,70 @@
+/* Basic styling for the note app */
+
+Screen {
+    align: center middle;
+    background: black;
+}
+
+#notes_container {
+    align: center middle;
+    width: 100%;
+    height: 100%;
+}
+
+#notes {
+    /* Fill the available space so the note field adapts to the
+       window size without large margins. */
+    width: 100%;
+    height: 100%;
+    border: solid green;
+}
+
+#timer_display {
+    dock: top;
+    height: 1;
+    content-align: center middle;
+    background: darkgreen;
+    color: white;
+}
+
+#timer_menu {
+    layer: overlay;
+    width: 30%;
+    border: solid purple;
+    background: #202020;
+    padding: 1 2;
+    align: center middle;
+}
+
+Button {
+    width: 100%;
+    margin: 1 0;
+}
+
+Button:focus {
+    background: purple;
+    color: white;
+}
+
+Input:focus {
+    border: solid purple;
+}
+
+/* Blink effect for the timer display when the countdown finishes */
+#timer_display.blink {
+    background: red;
+    text-style: blink;
+}
+
+/* Status bar at the bottom showing save state */
+#status_display {
+    dock: bottom;
+    height: 1;
+    content-align: center middle;
+    background: #303030;
+    color: white;
+}
+
+#status_display.modified {
+    background: #804000;
+}
