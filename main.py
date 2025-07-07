@@ -289,8 +289,10 @@ class NotificationBar(Static):
         self.animate("offset", Offset(0, 0), duration=0.2)
 
         def fade() -> None:
-            # Fade the bar away and slide it down again
-            self.animate("opacity", 0.0, duration=0.5)
+            # Fade the bar away and slide it down again. Opacity is a style
+            # attribute so we animate "styles.opacity" rather than a widget
+            # property to avoid the attribute error seen previously.
+            self.animate("styles.opacity", 0.0, duration=0.5)
             self.animate(
                 "offset", Offset(0, 1), duration=0.5, on_complete=self._hide
             )
