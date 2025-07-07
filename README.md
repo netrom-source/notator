@@ -16,6 +16,6 @@ This project contains a minimal note-taking application written with [Textual](h
    The window title also displays an asterisk when unsaved changes are present.
 7. Toggle **Hemmingway mode** with `Ctrl+E` to disable deleting and moving the cursor backwards.
 
-Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` have been removed.
+Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled so they no longer trigger Textual's built-in commands.
 
 All styling can be changed in `style.css`.

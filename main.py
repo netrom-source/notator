@@ -78,6 +78,31 @@ class TimerDisplay(Static):
         self.update(f"⏱ {minutes:02d}:{secs:02d}")
 
 
+class NoteInput(Input):
+    """Input widget without conflicting control-key shortcuts."""
+
+    # Filter out bindings that would otherwise consume Ctrl+E or Ctrl+K which
+    # are used by the application for other purposes. Copy all other bindings
+    # so the widget retains normal behaviour.
+    BINDINGS = [
+        b
+        for b in Input.BINDINGS
+        if "ctrl+k" not in b.key and "ctrl+e" not in b.key
+    ]
+
+
+class NoteTextArea(TextArea):
+    """Text area widget with custom key bindings."""
+
+    # Like ``NoteInput`` remove bindings for Ctrl+E and Ctrl+K so they can be
+    # used at the application level. All other default shortcuts are preserved.
+    BINDINGS = [
+        b
+        for b in TextArea.BINDINGS
+        if "ctrl+k" not in b.key and "ctrl+e" not in b.key
+    ]
+
+
 class TimerMenu(Vertical):
     """The pop-up menu with preset buttons and a custom input field."""
 
@@ -102,7 +127,7 @@ class TimerMenu(Vertical):
         yield Button("3m", id="t180")
         yield Button("7m", id="t420")
         yield Button("11m", id="t660")
-        yield Input(placeholder="Custom (e.g. 90, 2m)", id="custom")
+        yield NoteInput(placeholder="Custom (e.g. 90, 2m)", id="custom")
 
     def on_mount(self) -> None:
         """Cache child widgets for focus handling and focus the first item."""
@@ -111,7 +136,7 @@ class TimerMenu(Vertical):
             self.query_one("#t180", Button),
             self.query_one("#t420", Button),
             self.query_one("#t660", Button),
-            self.query_one("#custom", Input),
+            self.query_one("#custom", NoteInput),
         ]
         self._selected = 0
         self._items[0].focus()
@@ -173,7 +198,7 @@ class NoteApp(App[None]):
         """Create child widgets."""
         self.timer_display = TimerDisplay(id="timer_display")
         yield self.timer_display
-        yield Container(TextArea(id="notes"), id="notes_container")
+        yield Container(NoteTextArea(id="notes"), id="notes_container")
         self.menu = TimerMenu(id="timer_menu")
         self.menu.visible = False
         yield self.menu
@@ -182,7 +207,7 @@ class NoteApp(App[None]):
 
     def on_mount(self) -> None:
         """Load notes from disk and focus the note field on startup."""
-        notes = self.query_one("#notes", TextArea)
+        notes = self.query_one("#notes", NoteTextArea)
         try:
             with NOTES_FILE.open("r", encoding="utf-8") as f:
                 notes.text = f.read()
@@ -232,7 +257,7 @@ class NoteApp(App[None]):
             self.menu._selected = 0
             self.menu._items[0].focus()
         else:
-            self.query_one("#notes", TextArea).focus()
+            self.query_one("#notes", NoteTextArea).focus()
 
     def action_close_menu(self) -> None:
         """Close the timer menu if it is currently visible."""
@@ -258,7 +283,7 @@ class NoteApp(App[None]):
         # TextArea stores the current content in the ``text`` attribute.
         # Using ``text`` ensures compatibility with future versions of
         # Textual and avoids attribute errors.
-        text = self.query_one("#notes", TextArea).text
+        text = self.query_one("#notes", NoteTextArea).text
         with NOTES_FILE.open("w", encoding="utf-8") as f:
             f.write(text)
         self.unsaved = False
