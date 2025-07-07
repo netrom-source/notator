@@ -113,12 +113,23 @@ class NoteTextArea(TextArea):
         if "ctrl+h" not in b.key and "ctrl+k" not in b.key and "ctrl+m" not in b.key
     ]
 
-    def on_key(self, event: events.Key) -> None:
-        # Swallow unwanted shortcuts before Textual handles them.
+    async def _on_key(self, event: events.Key) -> None:
+        """Handle key events for the note area.
+
+        This override removes the ``Ctrl+H``, ``Ctrl+K`` and ``Ctrl+M``
+        shortcuts so they don't trigger Textual's default behaviours. All
+        other keys are passed through to ``TextArea`` for normal processing.
+        """
+
+        # Check for the control key combinations we want to ignore.
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m"}:
+            # Stop the event so nothing else reacts to it.
             event.stop()
             return
-        return super().on_key(event)
+
+        # Defer to the base ``TextArea`` implementation for everything else
+        # to keep all standard text editing features intact.
+        await super()._on_key(event)
 
 
 class TimerMenu(Vertical):
