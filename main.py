@@ -14,6 +14,7 @@ understand and extend.
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 from textual.app import App, ComposeResult
@@ -22,19 +23,29 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Button, Input, Static, TextArea
 
+# Name of the file used to store notes on disk. ``Path`` is used so it works
+# across different operating systems and makes future modifications easy.
+NOTES_FILE = Path("notes.txt")
+
+# Base title shown in the window. An asterisk is added when notes are modified
+# to provide a quick visual cue about unsaved work.
+APP_TITLE = "NoteApp"
+
 
 def parse_time_spec(value: str) -> Optional[int]:
-    """Convert a time specification to seconds.
+    """Convert a textual time specification to seconds.
 
-    The parser accepts values like ``"90"`` or ``"2m"``. If the value ends with a
-    ``"m"`` it is interpreted as minutes, otherwise as seconds.
+    The helper accepts plain numbers (interpreted as seconds) as well as values
+    suffixed with ``m`` to denote minutes. Whitespace around the value is
+    ignored, so ``" 2m "`` is valid. If the text cannot be parsed the function
+    returns ``None``.
 
     Args:
         value: Text entered by the user.
 
     Returns:
-        The number of seconds represented by the value or ``None`` if it is not
-        valid.
+        The number of seconds represented by the value or ``None`` if parsing
+        fails.
     """
 
     match = re.fullmatch(r"(\d+)(m?)", value.strip().lower())
@@ -73,6 +84,7 @@ class TimerMenu(Vertical):
     BINDINGS = [
         ("up", "focus_up", "Focus previous item"),
         ("down", "focus_down", "Focus next item"),
+        ("escape", "close_menu", "Close menu"),
     ]
 
     class SetTime(Message):
@@ -111,11 +123,21 @@ class TimerMenu(Vertical):
         self._selected = (self._selected + 1) % len(self._items)
         self._items[self._selected].focus()
 
+    def action_close_menu(self) -> None:
+        """Close the timer menu via the Escape key."""
+        self.app.action_toggle_menu()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
+        # The button IDs are formatted as ``t<seconds>`` so strip the leading
+        # character and convert the rest to an integer. ``SetTime`` will be sent
+        # back to the parent application.
         seconds = int(event.button.id[1:])
         self.post_message(self.SetTime(seconds))
 
     def on_input_submitted(self, event: Input.Submitted) -> None:  # type: ignore[override]
+        # Attempt to parse the user input. ``parse_time_spec`` returns ``None``
+        # if it can't interpret the value. In that case we ring the terminal
+        # bell to provide feedback.
         seconds = parse_time_spec(event.value)
         if seconds is not None:
             self.post_message(self.SetTime(seconds))
@@ -132,6 +154,7 @@ class NoteApp(App[None]):
         ("ctrl+t", "toggle_menu", "Timer Menu"),
         ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
         ("ctrl+s", "save_notes", "Save Notes"),
+        ("escape", "close_menu", "Close Menu"),
     ]
 
     countdown = reactive(CountdownState())
@@ -153,16 +176,19 @@ class NoteApp(App[None]):
         """Load notes from disk and focus the note field on startup."""
         notes = self.query_one("#notes", TextArea)
         try:
-            with open("notes.txt", "r", encoding="utf-8") as f:
+            with NOTES_FILE.open("r", encoding="utf-8") as f:
                 notes.text = f.read()
         except FileNotFoundError:
             pass
         notes.focus()
         self.status.update("Saved")
         self.unsaved = False
+        # Set the window title. ``watch_unsaved`` will update it whenever
+        # the notes change.
+        self.title = APP_TITLE
 
     def watch_countdown(self, countdown: CountdownState) -> None:
-        """Update the UI whenever the countdown changes."""
+        """Update the timer display whenever the countdown changes."""
         self.timer_display.update_time(countdown.remaining)
         self.timer_display.display = (
             self.menu_visible or countdown.remaining > 0
@@ -173,9 +199,12 @@ class NoteApp(App[None]):
         if unsaved:
             self.status.update("Unsaved changes")
             self.status.add_class("modified")
+            # Add an asterisk to the window title to indicate unsaved changes.
+            self.title = APP_TITLE + "*"
         else:
             self.status.update("Saved")
             self.status.remove_class("modified")
+            self.title = APP_TITLE
 
     def action_toggle_menu(self) -> None:
         """Show or hide the timer menu."""
@@ -191,10 +220,16 @@ class NoteApp(App[None]):
         else:
             self.query_one("#notes", TextArea).focus()
 
+    def action_close_menu(self) -> None:
+        """Close the timer menu if it is currently visible."""
+        if self.menu_visible:
+            self.action_toggle_menu()
+
     def action_reset_timer(self) -> None:
         """Reset or stop the timer depending on how quickly this action is called."""
         now = time.time()
-        # If the timer is running and we pressed reset less than 2s ago -> stop
+        # If the timer is running and we pressed reset less than two seconds ago
+        # we interpret that as a request to stop the countdown entirely.
         if (
             self.countdown.remaining > 0
             and now - self.countdown.last_started < 2
@@ -210,7 +245,7 @@ class NoteApp(App[None]):
         # Using ``text`` ensures compatibility with future versions of
         # Textual and avoids attribute errors.
         text = self.query_one("#notes", TextArea).text
-        with open("notes.txt", "w", encoding="utf-8") as f:
+        with NOTES_FILE.open("w", encoding="utf-8") as f:
             f.write(text)
         self.unsaved = False
         self.notify("Notes saved")
@@ -231,7 +266,7 @@ class NoteApp(App[None]):
         self.timer_display.remove_class("blink")
 
     def stop_timer(self) -> None:
-        '''Stop the timer and hide the display if the menu isn't open.'''
+        """Stop the timer and hide the display if the menu isn't open."""
         if hasattr(self, "_tick_handle"):
             self._tick_handle.stop()
         self.countdown.remaining = 0
@@ -242,6 +277,8 @@ class NoteApp(App[None]):
 
     def tick(self) -> None:
         """Called every second to update the countdown."""
+        # Reduce the remaining time and update the display. When the countdown
+        # reaches zero a blink effect is applied and the timer is stopped.
         if self.countdown.remaining > 0:
             self.countdown.remaining -= 1
             self.timer_display.update_time(self.countdown.remaining)
@@ -249,6 +286,8 @@ class NoteApp(App[None]):
                 self.timer_display.add_class("blink")
                 self.notify("Time's up!")
         else:
+            # Once the countdown reaches zero keep showing the timer only if
+            # the menu is visible and stop further updates.
             self.timer_display.display = self.menu_visible
             if hasattr(self, "_tick_handle"):
                 self._tick_handle.stop()

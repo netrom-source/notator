@@ -10,7 +10,9 @@ This project contains a minimal note-taking application written with [Textual](h
 4. Use the arrow keys to move between the timer options and press `Enter` to
    select a preset or submit a custom value (e.g. `90` or `2m`). The menu
    closes automatically when a time is chosen.
+   Press `Escape` to dismiss the menu without starting a timer.
 5. Press `Ctrl+R` to restart the timer. Press it again within two seconds to stop the countdown.
 6. Save your notes with `Ctrl+S`. The status bar at the bottom shows whether your notes are saved or have unsaved changes.
+   The window title also displays an asterisk when unsaved changes are present.
 
 All styling can be changed in `style.css`.
