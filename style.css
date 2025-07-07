@@ -13,7 +13,7 @@ Screen {
     height: 1fr;
 }
 
-#notes {
+.notes {
     /* Fill the available space so the note field adapts to the
        window size without large margins. */
     width: 100%;
@@ -43,7 +43,10 @@ Screen {
 Button {
     width: 100%;
     margin: 0 0 1 0;
-    height: 2; /* slightly slimmer buttons */
+    min-height: 1;
+    height: auto; /* allow shrinking without hiding the label */
+    line-pad: 0;
+    padding: 0;
     content-align: center middle;
 }
 

@@ -6,7 +6,7 @@ This module implements a Textual application that lets users write notes in a
 text area while optionally running a countdown timer. The timer menu can be
 toggled with ``Ctrl+T`` and offers a few preset durations as well as a custom
 input field. ``Ctrl+R`` resets the timer or stops it if pressed twice quickly.
-``Ctrl+Y`` toggles *Hemmingway mode*, which prevents deleting text or moving the
+``Ctrl+G`` toggles *Hemmingway mode*, which prevents deleting text or moving the
 cursor backwards.
 
 The application is fully standalone and heavily commented so that it is easy to
@@ -25,11 +25,21 @@ from textual.containers import Container, Vertical
 from textual.message import Message
 from textual.reactive import reactive
 from textual import events
-from textual.widgets import Button, Input, Static, TextArea
+from textual.widgets import (
+    Button,
+    Input,
+    Static,
+    TextArea,
+    TabbedContent,
+    TabPane,
+)
 
 # Name of the file used to store notes on disk. ``Path`` is used so it works
 # across different operating systems and makes future modifications easy.
-NOTES_FILE = Path("notes.txt")
+NOTE_FILES = {
+    "tab1": Path("notes1.txt"),
+    "tab2": Path("notes2.txt"),
+}
 
 # Base title shown in the window. An asterisk is added when notes are modified
 # to provide a quick visual cue about unsaved work.
@@ -105,6 +115,13 @@ class NoteTextArea(TextArea):
         for b in TextArea.BINDINGS
         if "ctrl+h" not in b.key and "ctrl+k" not in b.key and "ctrl+m" not in b.key
     ]
+
+    def on_key(self, event: events.Key) -> None:
+        """Swallow unwanted shortcuts before Textual handles them."""
+        if event.key in {"ctrl+h", "ctrl+k", "ctrl+m"}:
+            event.stop()
+            return
+        return super().on_key(event)
 
 
 class TimerMenu(Vertical):
@@ -186,11 +203,13 @@ class NoteApp(App[None]):
         ("ctrl+t", "toggle_menu", "Timer Menu"),
         ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
         ("ctrl+s", "save_notes", "Save Notes"),
-        ("ctrl+y", "toggle_hemmingway", "Hemmingway Mode"),
+        ("ctrl+g", "toggle_hemmingway", "Hemmingway Mode"),
         Binding("ctrl+h", "noop", "", show=False, priority=True),
         Binding("ctrl+k", "noop", "", show=False, priority=True),
         Binding("ctrl+m", "noop", "", show=False, priority=True),
         ("escape", "close_menu", "Close Menu"),
+        ("ctrl+pageup", "prev_tab", "Previous Tab"),
+        ("ctrl+pagedown", "next_tab", "Next Tab"),
     ]
 
     countdown = reactive(CountdownState())
@@ -198,11 +217,19 @@ class NoteApp(App[None]):
     unsaved = reactive(False)
     hemingway = reactive(False)
 
+    def __init__(self) -> None:
+        super().__init__()
+        # Track unsaved state for each tab individually
+        self.unsaved_map: dict[str, bool] = {}
+
     def compose(self) -> ComposeResult:
         """Create child widgets."""
         self.timer_display = TimerDisplay(id="timer_display")
         yield self.timer_display
-        yield Container(NoteTextArea(id="notes"), id="notes_container")
+        with Container(id="notes_container"):
+            with TabbedContent(initial="tab1", id="tabs"):
+                yield TabPane("Note 1", NoteTextArea(id="notes_tab1", classes="notes"), id="tab1")
+                yield TabPane("Note 2", NoteTextArea(id="notes_tab2", classes="notes"), id="tab2")
         self.menu = TimerMenu(id="timer_menu")
         self.menu.visible = False
         yield self.menu
@@ -210,18 +237,21 @@ class NoteApp(App[None]):
         yield self.status
 
     def on_mount(self) -> None:
-        """Load notes from disk and focus the note field on startup."""
-        notes = self.query_one("#notes", NoteTextArea)
-        try:
-            with NOTES_FILE.open("r", encoding="utf-8") as f:
-                notes.text = f.read()
-        except FileNotFoundError:
-            pass
-        notes.focus()
+        """Load notes for all tabs and focus the active one."""
+        self.tabs = self.query_one("#tabs", TabbedContent)
+        # Load each note file into its tabbed text area
+        for tab_id, path in NOTE_FILES.items():
+            textarea = self.tabs.get_pane(tab_id).query_one(NoteTextArea)
+            try:
+                with path.open("r", encoding="utf-8") as f:
+                    textarea.text = f.read()
+            except FileNotFoundError:
+                pass
+            self.unsaved_map[tab_id] = False
+        # Focus the text area in the initial tab
+        active = self.tabs.active or "tab1"
+        self.tabs.get_pane(active).query_one(NoteTextArea).focus()
         self.status.update("Saved")
-        self.unsaved = False
-        # Set the window title. ``watch_unsaved`` will update it whenever
-        # the notes change.
         self.title = APP_TITLE
 
     def watch_countdown(self, countdown: CountdownState) -> None:
@@ -265,7 +295,8 @@ class NoteApp(App[None]):
             self.menu._selected = 0
             self.menu._items[0].focus()
         else:
-            self.query_one("#notes", NoteTextArea).focus()
+            active = self.tabs.active or "tab1"
+            self.tabs.get_pane(active).query_one(NoteTextArea).focus()
 
     def action_close_menu(self) -> None:
         """Close the timer menu if it is currently visible."""
@@ -291,9 +322,13 @@ class NoteApp(App[None]):
         # TextArea stores the current content in the ``text`` attribute.
         # Using ``text`` ensures compatibility with future versions of
         # Textual and avoids attribute errors.
-        text = self.query_one("#notes", NoteTextArea).text
-        with NOTES_FILE.open("w", encoding="utf-8") as f:
+        active = self.tabs.active or "tab1"
+        textarea = self.tabs.get_pane(active).query_one(NoteTextArea)
+        text = textarea.text
+        path = NOTE_FILES[active]
+        with path.open("w", encoding="utf-8") as f:
             f.write(text)
+        self.unsaved_map[active] = False
         self.unsaved = False
         self.notify("Notes saved")
 
@@ -306,6 +341,22 @@ class NoteApp(App[None]):
     def action_noop(self) -> None:
         """An action that intentionally does nothing."""
         pass
+
+    def action_prev_tab(self) -> None:
+        """Activate the previous note tab."""
+        tabs = list(NOTE_FILES.keys())
+        active = self.tabs.active or tabs[0]
+        index = tabs.index(active)
+        new_active = tabs[(index - 1) % len(tabs)]
+        self.tabs.active = new_active
+
+    def action_next_tab(self) -> None:
+        """Activate the next note tab."""
+        tabs = list(NOTE_FILES.keys())
+        active = self.tabs.active or tabs[0]
+        index = tabs.index(active)
+        new_active = tabs[(index + 1) % len(tabs)]
+        self.tabs.active = new_active
 
     def start_timer(self, seconds: int) -> None:
         """Begin counting down from the given number of seconds."""
@@ -350,7 +401,9 @@ class NoteApp(App[None]):
                 self._tick_handle.stop()
 
     def on_text_area_changed(self, event: TextArea.Changed) -> None:  # type: ignore[override]
-        """Mark the notes as modified whenever their content changes."""
+        """Mark the current tab as modified when its content changes."""
+        active = self.tabs.active or "tab1"
+        self.unsaved_map[active] = True
         self.unsaved = True
 
     def on_timer_menu_set_time(self, message: TimerMenu.SetTime) -> None:
@@ -364,6 +417,12 @@ class NoteApp(App[None]):
         self.start_timer(message.seconds)
         if self.menu_visible:
             self.action_toggle_menu()
+
+    def on_tabbed_content_tab_activated(self, message: TabbedContent.TabActivated) -> None:
+        """Update status when switching tabs."""
+        active = message.pane.id
+        self.unsaved = self.unsaved_map.get(active, False)
+        message.pane.query_one(NoteTextArea).focus()
 
 
 if __name__ == "__main__":
