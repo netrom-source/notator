@@ -16,7 +16,8 @@ This project contains a minimal note-taking application written with [Textual](h
    The window title also displays an asterisk when unsaved changes are present.
 7. Toggle **Hemmingway mode** with `Ctrl+Y` to disable deleting and moving the cursor backwards.
 
-Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled so they no longer trigger Textual's built-in commands.
+Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled with high priority so they no longer trigger Textual's built-in commands.
 
-All styling can be changed in `style.css`. The default sheet defines a sleek
-gray theme, but you are free to customize the colors to your liking.
+All styling can be changed in `style.css`. The default sheet now uses muted
+earth tones with a dusty green timer bar. Toast notifications feature a subtle
+border and you can tweak the palette to suit your taste.

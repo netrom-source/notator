@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, Vertical
 from textual.message import Message
 from textual.reactive import reactive
@@ -186,9 +187,9 @@ class NoteApp(App[None]):
         ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
         ("ctrl+s", "save_notes", "Save Notes"),
         ("ctrl+y", "toggle_hemmingway", "Hemmingway Mode"),
-        ("ctrl+h", "noop", ""),
-        ("ctrl+k", "noop", ""),
-        ("ctrl+m", "noop", ""),
+        Binding("ctrl+h", "noop", "", show=False, priority=True),
+        Binding("ctrl+k", "noop", "", show=False, priority=True),
+        Binding("ctrl+m", "noop", "", show=False, priority=True),
         ("escape", "close_menu", "Close Menu"),
     ]
 
@@ -243,7 +244,11 @@ class NoteApp(App[None]):
             self.title = APP_TITLE
 
     def on_key(self, event: events.Key) -> None:
-        """Restrict certain keys when Hemingway mode is active."""
+        """Handle global key behaviour and Hemingway restrictions."""
+        if event.key in {"ctrl+h", "ctrl+k", "ctrl+m"}:
+            # Explicitly swallow these shortcuts so Textual's defaults don't run
+            event.stop()
+            return
         if self.hemingway and event.key in {"backspace", "delete", "left"}:
             event.prevent_default()
             event.stop()

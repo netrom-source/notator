@@ -26,7 +26,7 @@ Screen {
     dock: top;
     height: 1;
     content-align: center middle;
-    background: #444444;
+    background: #3d4b39; /* dusty green bar */
     color: #ffffff;
 }
 
@@ -43,7 +43,9 @@ Screen {
 Button {
     width: 100%;
     margin: 0 0 1 0;
-    height: 3;
+    height: 2; /* slightly slimmer buttons */
+    line-height: 1;
+    content-align: center middle;
 }
 
 Button:focus {
@@ -72,4 +74,15 @@ Input:focus {
 
 #status_display.modified {
     background: #705050;
+}
+
+/* Toast notifications with a subtle border */
+Toast {
+    background: #353535;
+    border: tall #3d4b39;
+    color: #f0f0f0;
+}
+
+Toast.-error {
+    background: #660000;
 }
