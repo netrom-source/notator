@@ -44,7 +44,6 @@ Button {
     width: 100%;
     margin: 0 0 1 0;
     height: 2; /* slightly slimmer buttons */
-    line-height: 1;
     content-align: center middle;
 }
 
