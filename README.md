@@ -8,15 +8,17 @@ This project contains a minimal note-taking application written with [Textual](h
 2. Run the app using `python main.py`.
 3. Create additional tabs with `Ctrl+N` or open an existing file with `Ctrl+O`.
    Close the active tab with `Ctrl+W` and hide/show the tab bar with `Ctrl+B`.
-   Switch between tabs by clicking the labels or pressing `Ctrl+PageUp` / `Ctrl+PageDown`.
+   Switch between tabs by clicking the labels or pressing `Ctrl+PageUp`/`Ctrl+PageDown`.
 4. Toggle the timer menu with `Ctrl+T`.
-5. Use the arrow keys to move between the timer options and press `Enter` to
-   select a preset or submit a custom value (e.g. `90` or `2m`). The menu
-   closes automatically when a time is chosen.
-   Press `Escape` to dismiss the menu without starting a timer. The menu occupies less screen height for a cleaner look.
+5. Use the arrow keys (or left/right) to move between the timer options and
+   press `Enter` to select a preset or submit a custom value (e.g. `90` or `2m`).
+   The menu closes automatically when a time is chosen. Press `Escape` to
+   dismiss the menu without starting a timer.
 6. Press `Ctrl+R` to restart the timer. Press it again within two seconds to stop the countdown.
-7. Save your notes with `Ctrl+S`. The status bar at the bottom shows whether your notes are saved or have unsaved changes.
-   The window title also displays an asterisk when unsaved changes are present.
+7. Save your notes with `Ctrl+S`. If the note has never been saved (or you press
+   `Ctrl+S` twice quickly) you will be prompted for a file name. The status bar
+   indicates whether the current tab has unsaved changes and the window title
+   shows an asterisk when modifications are pending.
 8. Toggle **Hemmingway mode** with `Ctrl+G` to disable deleting and moving the cursor backwards.
 
 Each tab stores its text in a separate file (`notes1.txt` and `notes2.txt`). Switching tabs updates the save indicator accordingly.

@@ -24,10 +24,11 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Vertical
+from textual.containers import Container, Vertical, Horizontal
 from textual.message import Message
 from textual.reactive import reactive
 from textual import events
+from textual.geometry import Offset
 from textual.widgets import (
     Button,
     Input,
@@ -139,8 +140,10 @@ class TimerMenu(Vertical):
     # action method defined below. These actions will move focus between the
     # buttons and the input widget.
     BINDINGS = [
-        ("up", "focus_up", "Focus previous item"),
-        ("down", "focus_down", "Focus next item"),
+        ("up", "focus_prev", "Focus previous"),
+        ("down", "focus_next", "Focus next"),
+        ("left", "focus_prev", "Focus previous"),
+        ("right", "focus_next", "Focus next"),
         ("escape", "close_menu", "Close menu"),
     ]
 
@@ -152,10 +155,11 @@ class TimerMenu(Vertical):
             self.seconds = seconds
 
     def compose(self) -> ComposeResult:
-        yield Button("30s", id="t30")
-        yield Button("3m", id="t180")
-        yield Button("7m", id="t420")
-        yield Button("11m", id="t660")
+        with Horizontal(id="preset_buttons"):
+            yield Button("30s", id="t30")
+            yield Button("3m", id="t180")
+            yield Button("7m", id="t420")
+            yield Button("11m", id="t660")
         yield NoteInput(placeholder="Custom (e.g. 90, 2m)", id="custom")
 
     def on_mount(self) -> None:
@@ -170,12 +174,12 @@ class TimerMenu(Vertical):
         self._selected = 0
         self._items[0].focus()
 
-    def action_focus_up(self) -> None:
+    def action_focus_prev(self) -> None:
         # Move focus to the previous widget in the menu.
         self._selected = (self._selected - 1) % len(self._items)
         self._items[self._selected].focus()
 
-    def action_focus_down(self) -> None:
+    def action_focus_next(self) -> None:
         # Move focus to the next widget in the menu.
         self._selected = (self._selected + 1) % len(self._items)
         self._items[self._selected].focus()
@@ -235,12 +239,43 @@ class FileOpenMenu(Vertical):
             self.app.bell()
 
 
+class SaveAsMenu(Vertical):
+    """Prompt the user to name the current note file."""
+
+    BINDINGS = [("escape", "close_menu", "Cancel")]
+
+    class SaveAs(Message):
+        """Message containing the chosen filename."""
+
+        def __init__(self, path: str) -> None:
+            super().__init__()
+            self.path = path
+
+    def compose(self) -> ComposeResult:
+        yield NoteInput(placeholder="File name", id="save_as_path")
+
+    def on_mount(self) -> None:
+        # Focus the input so the user can type immediately
+        self.query_one(NoteInput).focus()
+
+    def action_close_menu(self) -> None:
+        # Close the menu without saving
+        self.app.action_toggle_save_menu()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:  # type: ignore[override]
+        # Send the filename back to the application if not empty
+        if event.value:
+            self.post_message(self.SaveAs(event.value))
+        else:
+            self.app.bell()
+
+
 class NotificationBar(Static):
     """Single-line area at the bottom for transient messages."""
 
     def on_mount(self) -> None:
         # Start hidden below the screen with zero opacity
-        self.styles.offset = (0, 1)
+        self.styles.offset = Offset(0, 1)
         self.styles.opacity = 0
         self.display = False
 
@@ -251,12 +286,14 @@ class NotificationBar(Static):
         self.display = True
         self.styles.opacity = 1
         # Animate the bar sliding up
-        self.animate("offset", (0, 0), duration=0.2)
+        self.animate("offset", Offset(0, 0), duration=0.2)
 
         def fade() -> None:
             # Fade the bar away and slide it down again
             self.animate("opacity", 0.0, duration=0.5)
-            self.animate("offset", (0, 1), duration=0.5, on_complete=self._hide)
+            self.animate(
+                "offset", Offset(0, 1), duration=0.5, on_complete=self._hide
+            )
 
         self.set_timer(duration, fade)
 
@@ -288,6 +325,7 @@ class NoteApp(App[None]):
     countdown = reactive(CountdownState())
     menu_visible = reactive(False)
     open_menu_visible = reactive(False)
+    save_menu_visible = reactive(False)
     unsaved = reactive(False)
     hemingway = reactive(False)
     tab_bar_visible = reactive(True)
@@ -300,6 +338,8 @@ class NoteApp(App[None]):
         self.file_map: dict[str, Path | None] = {}
         # Counter for generating unique tab ids
         self.tab_counter = 2
+        # Track when Ctrl+S was last pressed to support rename on double press
+        self._last_save_time = 0.0
 
     def compose(self) -> ComposeResult:
         # Create child widgets.
@@ -315,6 +355,9 @@ class NoteApp(App[None]):
         self.open_menu = FileOpenMenu(id="open_menu")
         self.open_menu.visible = False
         yield self.open_menu
+        self.save_menu = SaveAsMenu(id="save_menu")
+        self.save_menu.visible = False
+        yield self.save_menu
         self.status = Static(id="status_display")
         yield self.status
         self.notification = NotificationBar(id="notification_bar")
@@ -372,6 +415,10 @@ class NoteApp(App[None]):
         # Display or hide the open-file menu.
         self.open_menu.visible = visible
 
+    def watch_save_menu_visible(self, visible: bool) -> None:
+        # Display or hide the save-as menu.
+        self.save_menu.visible = visible
+
     def on_key(self, event: events.Key) -> None:
         # Handle global key behaviour and Hemingway restrictions.
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m"}:
@@ -417,20 +464,28 @@ class NoteApp(App[None]):
             self.start_timer(self.countdown.duration)
 
     def action_save_notes(self) -> None:
-        # Save the current notes to disk.
-        # TextArea stores the current content in the ``text`` attribute.
-        # Using ``text`` ensures compatibility with future versions of
-        # Textual and avoids attribute errors.
+        """Save the current notes, prompting for a name when needed."""
+
+        now = time.time()
         active = self.tabs.active or "tab1"
         textarea = self.tabs.get_pane(active).query_one(NoteTextArea)
-        text = textarea.text
         path = self.file_map.get(active)
-        if path is None:
-            # Create a default file name if none was assigned
-            path = Path(f"notes_{active}.txt")
-            self.file_map[active] = path
+        double = now - self._last_save_time < 2
+        self._last_save_time = now
+
+        # If the note has no filename or the user double-pressed Ctrl+S,
+        # open the Save As menu so a name can be chosen or changed.
+        if path is None or double:
+            if not self.save_menu_visible:
+                self.save_menu_visible = True
+                input_widget = self.save_menu.query_one(NoteInput)
+                input_widget.value = path.name if path else ""
+                input_widget.focus()
+            return
+
+        # Write the text to the existing file
         with path.open("w", encoding="utf-8") as f:
-            f.write(text)
+            f.write(textarea.text)
         self.unsaved_map[active] = False
         self.unsaved = False
         self.notification.show("Notes saved")
@@ -486,6 +541,10 @@ class NoteApp(App[None]):
         """Hide the open-file menu."""
         self.open_menu_visible = False
 
+    def action_toggle_save_menu(self) -> None:
+        """Hide the save-as menu."""
+        self.save_menu_visible = False
+
     def on_file_open_menu_open_file(self, message: FileOpenMenu.OpenFile) -> None:
         """Create a new tab from the given file path."""
         path = Path(message.path)
@@ -509,14 +568,39 @@ class NoteApp(App[None]):
         note_area.focus()
         self.open_menu_visible = False
 
+    def on_save_as_menu_save_as(self, message: SaveAsMenu.SaveAs) -> None:
+        """Save the active note to the chosen filename."""
+        active = self.tabs.active or "tab1"
+        path = Path(message.path)
+        # Ensure the extension .txt exists for simplicity
+        if path.suffix == "":
+            path = path.with_suffix(".txt")
+        textarea = self.tabs.get_pane(active).query_one(NoteTextArea)
+        with path.open("w", encoding="utf-8") as f:
+            f.write(textarea.text)
+        self.file_map[active] = path
+        self.unsaved_map[active] = False
+        self.unsaved = False
+        self.save_menu_visible = False
+        self.notification.show(f"Saved as {path.name}")
+
     def action_close_tab(self) -> None:
         """Close the currently active tab if more than one is open."""
         if self.tabs.tab_count <= 1:
             return
         active = self.tabs.active or "tab1"
+        panes = list(self.file_map.keys())
+        index = panes.index(active)
         self.tabs.remove_pane(active)
         self.unsaved_map.pop(active, None)
         self.file_map.pop(active, None)
+        # Choose which tab becomes active after closing
+        if panes:
+            panes.remove(active)
+            new_index = index - 1 if index > 0 else 0
+            new_active = panes[new_index]
+            self.tabs.active = new_active
+            self.tabs.get_pane(new_active).query_one(NoteTextArea).focus()
         self.notification.show("Tab closed")
 
     def action_toggle_tab_bar(self) -> None:
