@@ -1,0 +1,33 @@
+# Fresh Note App
+
+This project contains a minimal note-taking application written with [Textual](https://textual.textualize.io/). The interface lets you type notes in a `TextArea` while an optional countdown timer can help manage your time.
+
+## Usage
+
+1. Install dependencies with `pip install textual`.
+2. Run the app using `python main.py`.
+3. Create additional tabs with `Ctrl+N` or open an existing file with `Ctrl+O`.
+   Close the active tab with `Ctrl+W` and hide/show the tab bar with `Ctrl+B`.
+   Switch between tabs by clicking the labels or pressing `Ctrl+PageUp`/`Ctrl+PageDown`.
+4. Toggle the timer menu with `Ctrl+T`.
+5. Use the arrow keys (or left/right) to move between the timer options and
+   press `Enter` to select a preset or submit a custom value (e.g. `90` or `2m`).
+   The menu closes automatically when a time is chosen. Press `Escape` to
+   dismiss the menu without starting a timer.
+6. Press `Ctrl+R` to restart the timer. Press it again within two seconds to stop the countdown.
+7. Save your notes with `Ctrl+S`. If the note has never been saved (or you press
+   `Ctrl+S` twice quickly) you will be prompted for a file name. The status bar
+   indicates whether the current tab has unsaved changes and the window title
+   shows an asterisk when modifications are pending.
+8. Toggle **Hemmingway mode** with `Ctrl+G` to disable deleting and moving the cursor backwards.
+9. Open and save prompts appear as slim bars above the status line.
+10. Tabs reopen automatically from the previous session so your work continues where you left off.
+
+Each tab stores its text in a separate file (`notes1.txt` and `notes2.txt`). Switching tabs updates the save indicator accordingly.
+
+Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled with high priority so they no longer trigger Textual's built-in commands.
+
+All styling can be changed in `style.css`. The default sheet now uses muted
+earth tones with a dusty green timer bar. Notification messages slide up from the
+bottom and fade away after a short delay. Adjust the palette and animations in
+the CSS as you see fit.
