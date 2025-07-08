@@ -17,6 +17,7 @@
 
 import re
 import time
+import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -39,10 +40,14 @@ from textual.widgets import (
 from textual.widgets.option_list import Option
 
 # Initial note files stored on disk. ``Path`` works across operating systems
-# and makes future modifications easy. These are loaded on startup.
+# and makes future modifications easy. The directory is resolved relative to
+# this file so the application works even when launched from another folder.
+DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR.mkdir(exist_ok=True)
+
 INITIAL_FILES = {
-    "tab1": Path("notes1.txt"),
-    "tab2": Path("notes2.txt"),
+    "tab1": DATA_DIR / "notes1.txt",
+    "tab2": DATA_DIR / "notes2.txt",
 }
 
 # Base title shown in the window. An asterisk is added when notes are modified
@@ -51,12 +56,12 @@ APP_TITLE = "NoteApp"
 
 # File storing the list of open tabs between sessions. This lets the
 # application restore the previous state when launched again.
-TAB_STATE_FILE = Path("tabs_state.json")
+TAB_STATE_FILE = DATA_DIR / "tabs_state.json"
 
 # Text file containing quotes separated by blank lines. A new quote
 # feature will display these one at a time. The path is kept here so it can
 # easily be changed later if desired.
-QUOTES_FILE = Path("quotes.txt")
+QUOTES_FILE = DATA_DIR / "quotes.txt"
 
 # Lines shown in sequence when attempting to delete a note.
 HAIKU_LINES = [
@@ -316,9 +321,9 @@ class FileOpenMenu(Vertical):
         self.file_list.focus()
 
     def refresh_files(self) -> None:
-        """Load ``.txt`` files in the current directory into the list."""
+        """Load ``.txt`` files from ``DATA_DIR`` into the list."""
         self.file_list.clear_options()
-        for path in sorted(Path(".").glob("*.txt")):
+        for path in sorted(DATA_DIR.glob("*.txt")):
             # Show the file name without extension for a cleaner look
             self.file_list.add_option(Option(path.stem, id=str(path)))
 
@@ -814,8 +819,8 @@ class NoteApp(App[None]):
             self.call_later(self.textareas[active].focus)
         self.status.update("Gemt")
         self.title = APP_TITLE
-        from textual.widgets._tabbed_content import ContentTabs
-        self.tab_bar = self.tabs.query_one(ContentTabs)
+        from textual.widgets import Tabs
+        self.tab_bar = self.tabs.query_one(Tabs)
         self.tab_bar.visible = True
         # Load quotes from file on startup
         self.load_quotes()
@@ -876,7 +881,7 @@ class NoteApp(App[None]):
             "tabs": [
                 {
                     "id": tab_id,
-                    "title": str(self.tabs.get_pane(tab_id)._title.plain),
+                    "title": self.tabs.get_tab(tab_id).label_text,
                     "file": str(path) if path else None,
                 }
                 for tab_id, path in self.file_map.items()
@@ -1057,7 +1062,7 @@ class NoteApp(App[None]):
     def on_save_as_menu_save_as(self, message: SaveAsMenu.SaveAs) -> None:
         """Save the active note to the chosen filename."""
         active = self.tabs.active or "tab1"
-        path = Path(message.path)
+        path = DATA_DIR / message.path
         # Ensure the extension .txt exists for simplicity
         if path.suffix == "":
             path = path.with_suffix(".txt")
@@ -1070,8 +1075,6 @@ class NoteApp(App[None]):
         self.unsaved_map[active] = False
         self.unsaved = False
         # Update the tab title to match the new filename
-        pane = self.tabs.get_pane(active)
-        pane._title = pane.render_str(path.stem)
         self.tabs.get_tab(active).label = path.stem
         self.save_menu_visible = False
         self.notification.show(f"Gemt som {path.stem}")
@@ -1230,8 +1233,6 @@ class NoteApp(App[None]):
             self.quote_overlay.show_restart_prompt()
             self.quote_visible = True
             return
-        import random
-
         quote = random.choice(available)
         self.shown_quotes.add(quote)
         self.quote_overlay.show_quote(quote)

@@ -1,5 +1,5 @@
 
-This project contains a minimal note-taking application written with [Textual](https://textual.textualize.io/). The interface lets you type notes in ads `TextArea` while an optional countdown timer can help manage your time.
+This project contains a minimal note-taking application written with [Textual](https://textual.textualize.io/). The interface lets you type notes in a `TextArea` while an optional countdown timer can help manage your time.
 All interface labels and notifications are in Danish for localization.
 
 ## Usage
@@ -30,10 +30,10 @@ All interface labels and notifications are in Danish for localization.
     with the arrow keys.
 11. Open and save prompts appear as slim bars above the status line. When opening files, available documents are listed without the `.txt` extension for a cleaner look.
 12. Tabs reopen automatically from the previous session so your work continues where you left off.
-13. Press `Ctrl+L` to view a random quote from `quotes.txt`. Quotes appear once each until all have been shown. When the list is exhausted you can choose to start over.
+13. Press `Ctrl+L` to view a random quote from `data/quotes.txt`. Quotes appear once each until all have been shown. The `data` folder lives next to `main.py`, so quotes load even if the program is launched from elsewhere. When the list is exhausted you can choose to start over.
     Opening the quote viewer repeatedly shows a gentle reminder if used too often.
 
-Each tab stores its text in a separate file (`notes1.txt` and `notes2.txt`). Switching tabs updates the save indicator accordingly.
+Each tab stores its text in a separate file (`data/notes1.txt` and `data/notes2.txt`). Switching tabs updates the save indicator accordingly.
 
 Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled with high priority so they no longer trigger Textual's built-in commands.
 
