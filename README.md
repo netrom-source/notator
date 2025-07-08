@@ -1,6 +1,7 @@
 # Fresh Note App
 
 This project contains a minimal note-taking application written with [Textual](https://textual.textualize.io/). The interface lets you type notes in a `TextArea` while an optional countdown timer can help manage your time.
+All interface labels and notifications are in Danish for localization.
 
 ## Usage
 
