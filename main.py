@@ -420,9 +420,12 @@ class HaikuPrompt(Vertical):
             disabled=True,
         )
         yield self.submit
-        # Accept button shown in the first step before the inputs appear.
-        self.accept = Button("Accepter", id="haiku_accept")
-        yield self.accept
+        # Buttons used on the first step: "Slet alligevel!" and "Annuler".
+        with Container(id="haiku_buttons"):
+            self.accept = Button("Slet alligevel!", id="haiku_accept")
+            yield self.accept
+            self.cancel_btn = Button("Annuler", id="haiku_cancel")
+            yield self.cancel_btn
 
     def on_mount(self) -> None:
         self.display = False
@@ -432,7 +435,8 @@ class HaikuPrompt(Vertical):
     def load_line(self) -> None:
         """Update the changing line from the rotating list."""
         text = (
-            "Denne skrivemaskine er bygget for at skabe, ikke slette.\n" + self.lines[self.index]
+            "Denne skrivemaskine er bygget for at skabe, ikke slette.\n\n"
+            + self.lines[self.index]
         )
         self.message.update(text)
         self.index = (self.index + 1) % len(self.lines)
@@ -467,8 +471,9 @@ class HaikuPrompt(Vertical):
         self.line3.display = True
         self.submit.display = True
         self.accept.display = False
-        # Hide the introductory message while the user types the poem
-        self.message.display = False
+        # Show instruction heading for the haiku input stage
+        self.message.update("Skriv et haiku for at slette!")
+        self.message.display = True
         self.line1.value = ""
         self.line2.value = ""
         self.line3.value = ""
@@ -501,6 +506,8 @@ class HaikuPrompt(Vertical):
             self.start_inputs()
         elif event.button.id == "haiku_submit" and not self.submit.disabled:
             self.post_message(self.Confirm())
+        elif event.button.id == "haiku_cancel":
+            self.hide_prompt()
 
     def action_cancel(self) -> None:
         self.hide_prompt()

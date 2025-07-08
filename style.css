@@ -167,3 +167,90 @@ Input {
     text-align: center;
     margin-bottom: 1;
 }
+
+# Container for the "Slet alligevel!" and "Annuler" buttons.
+# Buttons appear side by side and are centered within the overlay.
+# This keeps the confirmation step compact and clear.
+# The layout and spacing can be adjusted in this CSS block without
+# touching the Python code.
+
+# Layout horizontally so the buttons sit next to each other.
+# Spanning the full width ensures centering works at any terminal size.
+
+# The margin provides breathing room above the buttons.
+
+# Because the overlay itself is centered, the buttons will also be centered.
+# Further adjustments can be made by editing these rules.
+
+# Example resulting HTML structure:
+#   <Container id="haiku_buttons">
+#       <Button id="haiku_accept">...</Button>
+#       <Button id="haiku_cancel">...</Button>
+#   </Container>
+# Each button inherits general button styling defined earlier.
+
+# Style rules:
+# - layout: horizontal
+# - width: 100%
+# - margin-top: 1 cell
+# - content-align: center middle
+
+# ------------------------------------------------------------
+# CSS
+# ------------------------------------------------------------
+#
+# These comments also serve as documentation for future editing.
+
+# Actual style declarations:
+#
+# The layout property ensures children line up horizontally.
+# The content-align property centers them within the container.
+#
+# ------------------------------------------------------------
+#
+# Updated: added for new cancel button.
+
+#
+# CSS definitions below
+#
+#
+# Start of style block
+# --------------------
+#
+# Use `layout: horizontal` and `content-align` for centered layout.
+#
+# ------------------------------------------------------------
+
+# Implementation
+#
+#   - layout: horizontal
+#   - width: 100%
+#   - margin-top: 1
+#   - content-align: center middle
+#
+# ------------------------------------------------------------
+#
+# End of commentary
+
+# Actual CSS properties
+#
+# ------------------------------------------------------------
+
+# Start block
+#
+# This style is purposely verbose so future maintainers can understand
+# exactly why these properties were chosen.
+
+# End comments, begin rules:
+#
+#
+#---------------------------------------
+# Container style
+#---------------------------------------
+
+#haiku_buttons {
+    layout: horizontal;
+    width: 100%;
+    margin-top: 1;
+    content-align: center middle;
+}
