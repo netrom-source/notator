@@ -1,46 +1,229 @@
-/* Basic styling for the note app */
-
 Screen {
     align: center middle;
-    background: black;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    overflow: hidden; /* avoid terminal scrollbars */
 }
 
-#notes {
-    width: 80%;
-    height: 80%;
-    border: solid green;
+#notes_container {
+    align: center middle;
+    width: 100%;
+    /* Take up the space between the timer display and status bar */
+    height: 1fr;
+    overflow: hidden; /* prevent inner widgets from causing scroll */
+}
+
+/* Ensure the tabbed area grows to fill available space */
+TabbedContent {
+    width: 100%;
+    height: 1fr;
+}
+
+TabPane {
+    width: 100%;
+    height: 1fr;
+}
+
+.notes {
+    /* Fill all available space within the tab pane */
+    width: 100%;
+    height: 1fr;
+    border: solid #666666;
+    background: #222222;
 }
 
 #timer_display {
     dock: top;
     height: 1;
     content-align: center middle;
-    background: darkgreen;
-    color: white;
+    background: #3d4b39; /* dusty green bar */
+    color: #ffffff;
 }
 
 #timer_menu {
-    layer: overlay;
-    width: 30%;
-    border: solid purple;
-    background: #202020;
+    dock: top;          /* place between timer display and notes */
+    width: 100%;        /* span full width of the screen */
+    height: auto;       /* grow to fit content */
+    margin-top: 1;
+    border: solid #888888;
+    background: #303030;
     padding: 1 2;
     align: center middle;
 }
 
-Button {
+#timer_options {
     width: 100%;
-    margin: 1 0;
+    height: auto;
+    min-height: 1;
+    margin-bottom: 1;
 }
-     9bfmem-codex/design-python-baseret-notesystem-med-timer
+
+#timer_options > .option-list--option {
+    content-align: center middle;
+    color: #e0e0e0; /* visible text */
+}
+
+#open_menu,
+#save_menu {
+    layer: overlay;
+    dock: bottom;           /* sit above the status bar */
+    margin-bottom: 1;
+    width: 100%;
+    height: auto;           /* size to content */
+    min-height: 3;
+    border: solid #888888;
+    background: #303030;
+    padding: 1 2;
+    align: center middle;
+}
+
+#open_files {
+    width: 100%;
+    height: 10;        /* show multiple entries */
+    min-height: 1;
+}
+
+#open_files > .option-list--option {
+    content-align: left middle;
+    color: #e0e0e0;
+}
+
+Button {
+    width: auto;
+    min-width: 4;
+    margin: 0 1;
+    min-height: 1;
+    height: auto;
+    padding: 0;
+    content-align: center middle;
+}
 
 Button:focus {
-    background: purple;
-    color: white;
+    background: #666666;
+    color: #ffffff;
 }
 
 Input:focus {
-    border: solid purple;
+    border: solid #888888;
 }
-  
-  main
+
+/* Ensure input text is readable */
+Input {
+    background: #202020;
+    color: #e0e0e0;
+    width: 100%;
+}
+
+/* Blink effect for the timer display when the countdown finishes */
+#timer_display.blink {
+    background: #800000;
+    text-style: blink;
+}
+
+/* Status bar at the bottom showing save state */
+#status_display {
+    dock: bottom;
+    height: 1;
+    content-align: center middle;
+    background: #202020;
+    color: #cccccc;
+}
+
+#status_display.modified {
+    background: #705050;
+}
+
+
+/* Notification bar at bottom */
+#notification_bar {
+    layer: overlay;        /* float above other widgets */
+    dock: bottom;
+    margin-bottom: 1;      /* sit above the status bar */
+    height: 3;          /* increased to ensure text visibility */
+    width: 100%;
+    background: #454545;
+    color: #ffffff;
+    border: tall #888888;
+    opacity: 0;            /* start fully transparent */
+    content-align: center middle;
+}
+
+/* Overlay shown when confirming file deletion with a haiku */
+#haiku_overlay {
+    layer: overlay;
+    width: 80%;
+    height: auto;
+    max-height: 90%;
+    overflow: auto;
+    border: solid #888888;
+    padding: 1 2;
+    background: #303030;
+    color: #e0e0e0;
+    align: center middle;
+}
+
+#haiku_message {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 1;
+}
+/* Container for the "Slet alligevel!" and "Annuller" buttons.
+   Buttons sit side by side in a centered layout with a small margin.
+   Example structure:
+       <Container id="haiku_buttons">
+           <Button id="haiku_accept">...</Button>
+           <Button id="haiku_cancel">...</Button>
+       </Container>
+
+   This style is purposely verbose so future maintainers can understand
+   exactly why these properties were chosen.
+
+   End comments, begin rules:
+
+   ---------------------------------------
+   Container style
+   ---------------------------------------
+*/
+
+#haiku_buttons {
+    layout: horizontal;
+    width: 100%;
+    margin-top: 1;
+    content-align: center middle;
+}
+
+#haiku_submit {
+    align: center middle;
+    margin-top: 1;
+}
+
+/* Overlay used to display quotes and related prompts */
+#quote_overlay {
+    layer: overlay;
+    width: 70%;
+    height: auto;
+    max-height: 80%;
+    overflow: auto;
+    border: solid #888888;
+    padding: 1 2;
+    background: #303030;
+    color: #e0e0e0;
+    align: center middle;
+}
+
+#quote_text {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#quote_buttons {
+    layout: horizontal;
+    width: 100%;
+    content-align: center middle;
+}
+
+/* Ensure OK button is centered when it is the only visible option */
+#quote_ok {
+    content-align: center middle;
+}
