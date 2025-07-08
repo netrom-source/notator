@@ -40,8 +40,9 @@ from textual.widgets import (
 from textual.widgets.option_list import Option
 
 # Initial note files stored on disk. ``Path`` works across operating systems
-# and makes future modifications easy. These are loaded on startup.
-DATA_DIR = Path("data")
+# and makes future modifications easy. The directory is resolved relative to
+# this file so the application works even when launched from another folder.
+DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
 INITIAL_FILES = {
