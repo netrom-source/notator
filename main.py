@@ -444,6 +444,8 @@ class HaikuPrompt(Vertical):
         self.visible = True
         self.display = True
         self.styles.opacity = 1.0
+        # Show the message and hide the input fields until accepted
+        self.message.display = True
         # Start with only the accept button visible
         self.line1.display = False
         self.line2.display = False
@@ -465,6 +467,8 @@ class HaikuPrompt(Vertical):
         self.line3.display = True
         self.submit.display = True
         self.accept.display = False
+        # Hide the introductory message while the user types the poem
+        self.message.display = False
         self.line1.value = ""
         self.line2.value = ""
         self.line3.value = ""
@@ -472,18 +476,16 @@ class HaikuPrompt(Vertical):
         self.line1.focus()
 
     def validate(self) -> None:
-        """Enable the submit button when the input resembles a haiku."""
-        def approx(text: str) -> int:
-            return sum(ch.lower() in "aeiouyæøå" for ch in text) + text.count(" ")
+        """Enable the submit button when the input contains 5/7/5 words."""
 
-        def ok(text: str, target: int) -> bool:
-            count = approx(text)
-            return target - 1 <= count <= target + 1
+        def count_words(text: str) -> int:
+            # Split on whitespace to count words; ignore extra spaces
+            return len(text.strip().split())
 
         valid = (
-            ok(self.line1.value, 5)
-            and ok(self.line2.value, 7)
-            and ok(self.line3.value, 5)
+            count_words(self.line1.value) == 5
+            and count_words(self.line2.value) == 7
+            and count_words(self.line3.value) == 5
         )
         self.submit.disabled = not valid
 
