@@ -224,3 +224,9 @@ Input {
     width: 100%;
     content-align: center middle;
 }
+
+/* Ensure OK button is centered when it is the only visible option */
+#quote_ok {
+    margin-left: auto;
+    margin-right: auto;
+}
