@@ -54,6 +54,11 @@ APP_TITLE = "NoteApp"
 # application restore the previous state when launched again.
 TAB_STATE_FILE = Path("tabs_state.json")
 
+# Text file containing quotes separated by blank lines. A new quote
+# feature will display these one at a time. The path is kept here so it can
+# easily be changed later if desired.
+QUOTES_FILE = Path("quotes.txt")
+
 # Lines shown in sequence when attempting to delete a note.
 HAIKU_LINES = [
     "Hvad vil du fortrænge?\nHvad hvis det var begyndelse –\nikke en fejlskrift?",
@@ -383,6 +388,103 @@ class NotificationBar(Static):
         self.styles.opacity = 0
 
 
+class QuoteOverlay(Vertical):
+    """Overlay used to display quotes and prompts."""
+
+    BINDINGS = [("escape", "close", "Luk")]
+
+    class Restart(Message):
+        """Sent when the user chooses whether to restart the quote list."""
+
+        def __init__(self, restart: bool) -> None:
+            super().__init__()
+            self.restart = restart
+
+    class Force(Message):
+        """Sent when the user insists on seeing a quote despite the warning."""
+
+        def __init__(self) -> None:
+            super().__init__()
+
+    def compose(self) -> ComposeResult:
+        # Text of the quote or message
+        self.text = Static(id="quote_text")
+        yield self.text
+        # Container for buttons; buttons are shown/hidden per mode
+        with Container(id="quote_buttons"):
+            self.ok_button = Button("OK", id="quote_ok")
+            self.yes_button = Button("Ja", id="quote_yes")
+            self.no_button = Button("Nej", id="quote_no")
+            self.force_button = Button(
+                "Giv mig et citat, din fandens hippie!!!", id="quote_force"
+            )
+            yield self.ok_button
+            yield self.yes_button
+            yield self.no_button
+            yield self.force_button
+
+    def on_mount(self) -> None:
+        # Start hidden
+        self.display = False
+        self.visible = False
+
+    def show_quote(self, text: str) -> None:
+        """Display a quote with a single OK button."""
+        self.text.update(text)
+        self.ok_button.display = True
+        self.yes_button.display = False
+        self.no_button.display = False
+        self.force_button.display = False
+        self.visible = True
+        self.display = True
+        self.ok_button.focus()
+
+    def show_restart_prompt(self) -> None:
+        """Ask the user if the quotes should start over."""
+        self.text.update("Alle citater er vist. Vil du starte forfra?")
+        self.ok_button.display = False
+        self.yes_button.display = True
+        self.no_button.display = True
+        self.force_button.display = False
+        self.visible = True
+        self.display = True
+        self.yes_button.focus()
+
+    def show_rate_limit(self) -> None:
+        """Warn the user about frequent requests."""
+        self.text.update(
+            "Det er din tredje foresp\xF8rsel p\xE5 et citat p\xE5 under femten minutter.\n"
+            "Selv de mest kraftfulde ord mister sin virkning, hvis de bruges som flugt.\n"
+            "Pr\xF8v en vejrtr\xE6knings\xF8velse i stedet \u2014 og m\xE6rk efter."
+        )
+        self.ok_button.display = False
+        self.yes_button.display = False
+        self.no_button.display = False
+        self.force_button.display = True
+        self.visible = True
+        self.display = True
+        self.force_button.focus()
+
+    def action_close(self) -> None:
+        self.display = False
+        self.visible = False
+        if hasattr(self, "app"):
+            self.app.quote_visible = False
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
+        if event.button.id == "quote_ok":
+            self.action_close()
+        elif event.button.id == "quote_yes":
+            self.post_message(self.Restart(True))
+            self.action_close()
+        elif event.button.id == "quote_no":
+            self.post_message(self.Restart(False))
+            self.action_close()
+        elif event.button.id == "quote_force":
+            self.post_message(self.Force())
+            self.action_close()
+
+
 class HaikuPrompt(Vertical):
     """Modal shown to confirm deletion with a haiku."""
 
@@ -580,6 +682,7 @@ class NoteApp(App[None]):
         ("escape", "close_menu", "Luk menu"),
         ("ctrl+pageup", "prev_tab", "Forrige fane"),
         ("ctrl+pagedown", "next_tab", "Næste fane"),
+        ("ctrl+l", "show_quote", "Vis citat"),
     ]
 
     countdown = reactive(CountdownState())
@@ -587,6 +690,7 @@ class NoteApp(App[None]):
     open_menu_visible = reactive(False)
     save_menu_visible = reactive(False)
     haiku_visible = reactive(False)
+    quote_visible = reactive(False)
     unsaved = reactive(False)
     hemingway = reactive(False)
     tab_bar_visible = reactive(True)
@@ -605,6 +709,14 @@ class NoteApp(App[None]):
         self.tab_counter = 2
         # Track when Ctrl+S was last pressed to support rename on double press
         self._last_save_time = 0.0
+        # Quote management: list of all quotes and which have been shown
+        self.quotes: list[str] = []
+        self.shown_quotes: set[str] = set()
+        self.quotes_finished = False
+        # Times when the quote viewer was opened, for rate limiting
+        self.quote_request_times: list[float] = []
+        # Remember file modification time to detect new quotes
+        self._quotes_mtime = 0.0
 
     def compose(self) -> ComposeResult:
         # Create child widgets.
@@ -631,6 +743,10 @@ class NoteApp(App[None]):
         yield self.status
         self.notification = NotificationBar(id="notification_bar")
         yield self.notification
+        # Overlay for displaying quotes or related prompts
+        self.quote_overlay = QuoteOverlay(id="quote_overlay")
+        self.quote_overlay.visible = False
+        yield self.quote_overlay
 
     def on_mount(self) -> None:
         """Load tabs from the previous session or the default files."""
@@ -702,6 +818,8 @@ class NoteApp(App[None]):
         from textual.widgets._tabbed_content import ContentTabs
         self.tab_bar = self.tabs.query_one(ContentTabs)
         self.tab_bar.visible = True
+        # Load quotes from file on startup
+        self.load_quotes()
 
     def watch_countdown(self, countdown: CountdownState) -> None:
         # Update the timer display whenever the countdown changes.
@@ -744,6 +862,11 @@ class NoteApp(App[None]):
         # Show or hide the haiku deletion prompt.
         self.haiku_prompt.visible = visible
         self.haiku_prompt.display = visible
+
+    def watch_quote_visible(self, visible: bool) -> None:
+        # Show or hide the quote overlay.
+        self.quote_overlay.visible = visible
+        self.quote_overlay.display = visible
 
     def save_tab_state(self) -> None:
         """Write the current open tabs to ``TAB_STATE_FILE``."""
@@ -1063,6 +1186,76 @@ class NoteApp(App[None]):
             self.timer_display.display = self.menu_visible
             if hasattr(self, "_tick_handle"):
                 self._tick_handle.stop()
+
+    # ------------------------------------------------------------------
+    # Quote handling
+    # ------------------------------------------------------------------
+
+    def load_quotes(self) -> None:
+        """Load quotes from ``QUOTES_FILE`` if it has changed."""
+
+        if not QUOTES_FILE.exists():
+            self.quotes = []
+            return
+        mtime = QUOTES_FILE.stat().st_mtime
+        if mtime != self._quotes_mtime:
+            text = QUOTES_FILE.read_text(encoding="utf-8")
+            self.quotes = [q.strip() for q in text.split("\n\n") if q.strip()]
+            self._quotes_mtime = mtime
+            # If new quotes were added, allow showing quotes again
+            if any(q not in self.shown_quotes for q in self.quotes):
+                self.quotes_finished = False
+
+    def action_show_quote(self) -> None:
+        """Display a random quote if available."""
+
+        now = time.time()
+        # Clean up request times older than fifteen minutes
+        self.quote_request_times = [t for t in self.quote_request_times if now - t < 900]
+        if len(self.quote_request_times) >= 3:
+            # Too many requests in a short period
+            self.quote_overlay.show_rate_limit()
+            self.quote_visible = True
+            return
+
+        self.quote_request_times.append(now)
+        self.load_quotes()
+        if not self.quotes:
+            self.notification.show("Ingen citater fundet")
+            return
+        available = [q for q in self.quotes if q not in self.shown_quotes]
+        if not available:
+            if self.quotes_finished:
+                self.notification.show("Citatfilen skal opfyldes igen")
+                return
+            self.quote_overlay.show_restart_prompt()
+            self.quote_visible = True
+            return
+        import random
+
+        quote = random.choice(available)
+        self.shown_quotes.add(quote)
+        self.quote_overlay.show_quote(quote)
+        self.quote_visible = True
+
+    def on_quote_overlay_restart(self, message: QuoteOverlay.Restart) -> None:
+        """Handle the user's choice after all quotes have been shown."""
+
+        if message.restart:
+            # Start over: clear the set and show a new quote
+            self.shown_quotes.clear()
+            self.quotes_finished = False
+            self.action_show_quote()
+        else:
+            # Mark as finished so further requests require new quotes
+            self.quotes_finished = True
+            self.notification.show("Citater udt\xF8mt")
+
+    def on_quote_overlay_force(self, message: QuoteOverlay.Force) -> None:
+        """User insisted on another quote despite the warning."""
+
+        self.quote_request_times.append(time.time())
+        self.action_show_quote()
 
     def on_text_area_changed(self, event: TextArea.Changed) -> None:  # type: ignore[override]
         # Mark the current tab as modified when its content changes.

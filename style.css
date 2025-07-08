@@ -198,3 +198,29 @@ Input {
     align: center middle;
     margin-top: 1;
 }
+
+/* Overlay used to display quotes and related prompts */
+#quote_overlay {
+    layer: overlay;
+    width: 70%;
+    height: auto;
+    max-height: 80%;
+    overflow: auto;
+    border: solid #888888;
+    padding: 1 2;
+    background: #303030;
+    color: #e0e0e0;
+    align: center middle;
+}
+
+#quote_text {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#quote_buttons {
+    layout: horizontal;
+    width: 100%;
+    content-align: center middle;
+}
