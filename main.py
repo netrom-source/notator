@@ -206,7 +206,7 @@ class TimerMenu(Vertical):
     """
 
     # Escape closes the menu. Navigation keys are provided by ``OptionList``.
-    BINDINGS = [("escape", "close_menu", "Close menu")]
+    BINDINGS = [("escape", "close_menu", "Luk menu")]
 
     class SetTime(Message):
         """Message sent when the user selects a duration."""
@@ -227,7 +227,7 @@ class TimerMenu(Vertical):
             Option("11m", id="t660"),
             id="timer_options",
         )
-        yield NoteInput(placeholder="Custom (e.g. 90, 2m)", id="custom")
+        yield NoteInput(placeholder="Brugerdefineret (f.eks. 90, 2m)", id="custom")
 
     def on_mount(self) -> None:
         # Start hidden and focus the option list when the menu appears.
@@ -291,7 +291,7 @@ class FileOpenMenu(Vertical):
     """Overlay menu that lists ``.txt`` files to open."""
 
     BINDINGS = [
-        ("escape", "close_menu", "Cancel"),
+        ("escape", "close_menu", "Annuller"),
     ]
 
     class OpenFile(Message):
@@ -330,7 +330,7 @@ class FileOpenMenu(Vertical):
 class SaveAsMenu(Vertical):
     """Prompt the user to name the current note file."""
 
-    BINDINGS = [("escape", "close_menu", "Cancel")]
+    BINDINGS = [("escape", "close_menu", "Annuller")]
 
     class SaveAs(Message):
         """Message containing the chosen filename."""
@@ -340,7 +340,7 @@ class SaveAsMenu(Vertical):
             self.path = path
 
     def compose(self) -> ComposeResult:
-        yield NoteInput(placeholder="File name", id="save_as_path")
+        yield NoteInput(placeholder="Filnavn", id="save_as_path")
 
     def on_mount(self) -> None:
         # Focus the input so the user can type immediately
@@ -386,7 +386,7 @@ class NotificationBar(Static):
 class HaikuPrompt(Vertical):
     """Modal shown to confirm deletion with a haiku."""
 
-    BINDINGS = [("escape", "cancel", "Cancel")]  # allow closing with Esc
+    BINDINGS = [("escape", "cancel", "Annuller")]  # allow closing with Esc
 
     class Confirm(Message):
         """Sent when the user submits a valid haiku."""
@@ -565,21 +565,21 @@ class NoteApp(App[None]):
     CSS_PATH = "style.css"
 
     BINDINGS = [
-        ("ctrl+t", "toggle_menu", "Timer Menu"),
-        ("ctrl+r", "reset_timer", "Reset/Stop Timer"),
-        ("ctrl+s", "save_notes", "Save Notes"),
-        ("ctrl+g", "toggle_hemmingway", "Hemmingway Mode"),
-        ("ctrl+n", "new_tab", "New Tab"),
-        ("ctrl+o", "open_file", "Open File"),
-        Binding("ctrl+w", "close_tab", "Close Tab", priority=True),
-        ("ctrl+b", "toggle_tab_bar", "Toggle Tabs"),
+        ("ctrl+t", "toggle_menu", "Timer-menu"),
+        ("ctrl+r", "reset_timer", "Nulstil/Stop timer"),
+        ("ctrl+s", "save_notes", "Gem noter"),
+        ("ctrl+g", "toggle_hemmingway", "Hemmingway-tilstand"),
+        ("ctrl+n", "new_tab", "Ny fane"),
+        ("ctrl+o", "open_file", "Åbn fil"),
+        Binding("ctrl+w", "close_tab", "Luk fane", priority=True),
+        ("ctrl+b", "toggle_tab_bar", "Vis/Skjul faner"),
         Binding("ctrl+h", "noop", "", show=False, priority=True),
         Binding("ctrl+k", "noop", "", show=False, priority=True),
         Binding("ctrl+m", "noop", "", show=False, priority=True),
-        ("ctrl+delete", "prompt_delete", "Delete File"),
-        ("escape", "close_menu", "Close Menu"),
-        ("ctrl+pageup", "prev_tab", "Previous Tab"),
-        ("ctrl+pagedown", "next_tab", "Next Tab"),
+        ("ctrl+delete", "prompt_delete", "Slet fil"),
+        ("escape", "close_menu", "Luk menu"),
+        ("ctrl+pageup", "prev_tab", "Forrige fane"),
+        ("ctrl+pagedown", "next_tab", "Næste fane"),
     ]
 
     countdown = reactive(CountdownState())
@@ -697,7 +697,7 @@ class NoteApp(App[None]):
         if active and active in self.textareas:
             # Focus after mount to avoid "NoMatches" errors
             self.call_later(self.textareas[active].focus)
-        self.status.update("Saved")
+        self.status.update("Gemt")
         self.title = APP_TITLE
         from textual.widgets._tabbed_content import ContentTabs
         self.tab_bar = self.tabs.query_one(ContentTabs)
@@ -713,12 +713,12 @@ class NoteApp(App[None]):
     def watch_unsaved(self, unsaved: bool) -> None:
         # Update the status bar whenever the save state changes.
         if unsaved:
-            self.status.update("Unsaved changes")
+            self.status.update("Ændringer ikke gemt")
             self.status.add_class("modified")
             # Add an asterisk to the window title to indicate unsaved changes.
             self.title = APP_TITLE + "*"
         else:
-            self.status.update("Saved")
+            self.status.update("Gemt")
             self.status.remove_class("modified")
             self.title = APP_TITLE
 
@@ -835,13 +835,13 @@ class NoteApp(App[None]):
             f.write(textarea.text)
         self.unsaved_map[active] = False
         self.unsaved = False
-        self.notification.show("Notes saved")
+        self.notification.show("Noter gemt")
 
     def action_toggle_hemmingway(self) -> None:
         # Toggle Hemingway mode, which disables deletions and backtracking.
         self.hemingway = not self.hemingway
-        state = "ON" if self.hemingway else "OFF"
-        self.notification.show(f"Hemmingway mode {state}")
+        state = "TIL" if self.hemingway else "FRA"
+        self.notification.show(f"Hemmingway-tilstand {state}")
 
     def action_noop(self) -> None:
         # An action that intentionally does nothing.
@@ -914,7 +914,7 @@ class NoteApp(App[None]):
             with path.open("r", encoding="utf-8") as f:
                 text = f.read()
         except FileNotFoundError:
-            self.notification.show("File not found", duration=2)
+            self.notification.show("Filen blev ikke fundet", duration=2)
             self.open_menu_visible = False
             return
         self.tab_counter += 1
@@ -952,7 +952,7 @@ class NoteApp(App[None]):
         pane._title = pane.render_str(path.stem)
         self.tabs.get_tab(active).label = path.stem
         self.save_menu_visible = False
-        self.notification.show(f"Saved as {path.stem}")
+        self.notification.show(f"Gemt som {path.stem}")
         self.save_tab_state()
 
     def on_haiku_prompt_confirm(self, message: HaikuPrompt.Confirm) -> None:
@@ -992,7 +992,7 @@ class NoteApp(App[None]):
             note_area = self.textareas.get(new_active)
             if note_area:
                 note_area.focus()
-        self.notification.show("Tab closed")
+        self.notification.show("Fane lukket")
         self.save_tab_state()
 
     def close_current_tab(self) -> None:
@@ -1033,7 +1033,7 @@ class NoteApp(App[None]):
         if hasattr(self, "_tick_handle"):
             self._tick_handle.stop()
         self._tick_handle = self.set_interval(1, self.tick)
-        self.notification.show("Timer started")
+        self.notification.show("Timer startet")
         # Remove any previous blink class in case the timer is restarted
         self.timer_display.remove_class("blink")
 
@@ -1045,7 +1045,7 @@ class NoteApp(App[None]):
         self.timer_display.update_time(0)
         self.timer_display.display = self.menu_visible
         self.timer_display.remove_class("blink")
-        self.notification.show("Timer stopped")
+        self.notification.show("Timer stoppet")
 
     def tick(self) -> None:
         # Called every second to update the countdown.
@@ -1056,7 +1056,7 @@ class NoteApp(App[None]):
             self.timer_display.update_time(self.countdown.remaining)
             if self.countdown.remaining == 0:
                 self.timer_display.add_class("blink")
-                self.notification.show("Time's up!")
+                self.notification.show("Tiden er gået!")
         else:
             # Once the countdown reaches zero keep showing the timer only if
             # the menu is visible and stop further updates.
