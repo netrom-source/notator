@@ -149,3 +149,21 @@ Input {
     opacity: 0;            /* start fully transparent */
     content-align: center middle;
 }
+
+/* Overlay shown when confirming file deletion with a haiku */
+#haiku_overlay {
+    layer: overlay;
+    width: 80%;
+    height: auto;
+    border: solid #888888;
+    padding: 1 2;
+    background: #303030;
+    color: #e0e0e0;
+    align: center middle;
+}
+
+#haiku_message {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 1;
+}

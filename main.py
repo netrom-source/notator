@@ -35,6 +35,7 @@ from textual.widgets import (
     TabbedContent,
     TabPane,
     OptionList,
+    Button,
 )
 from textual.widgets.option_list import Option
 
@@ -52,6 +53,34 @@ APP_TITLE = "NoteApp"
 # File storing the list of open tabs between sessions. This lets the
 # application restore the previous state when launched again.
 TAB_STATE_FILE = Path("tabs_state.json")
+
+# Lines shown in sequence when attempting to delete a note.
+HAIKU_LINES = [
+    "Hvad vil du fortrænge?\nHvad hvis det var begyndelse –\nikke en fejlskrift?",
+    "Du trykker for slet.\nMen hvem var du, da du skrev?\nEr han stadig her?",
+    "Hver linje du skrev\nbar en drøm i forklædning.\nEr du træt af den?",
+    "Hvis du nu forlod\ndette fragment af din stemme –\nhvem vil finde den?",
+    "Glemsel er let nok,\nmen har du givet mening\ntil det, du vil fjerne?",
+    "Skriv ikke forbi.\nSkriv en grav for ordene –\nog gå den i møde.",
+    "Den tavse cursor spør’:\nSkal jeg fortsætte alene?\nEller med din hånd?",
+    "Et klik, og det går –\nmen før du lader det ske,\nsig hvad det var værd.",
+    "Afsked uden ord\ner bare fortrængningens dans.\nGiv det rytme først.",
+    "Du skrev det i hast –\nvil du også slette det\nsådan? Eller i haiku?",
+    "Måske var det grimt.\nMen var det ikke også dig?\nÉn dag i dit liv.",
+    "Dette var engang\net sted du tænkte frit i.\nGår du nu forbi?",
+    "Du trykker på slet.\nMen vil du virkelig forlade\ndig selv i mørket?",
+    "Lad ikke din frygt\nblive sletterens skygge.\nSkriv med åbne øjne.",
+    "Hvis du kan digte,\nså kan du også forlade –\nmed hjertet åbent.",
+    "Hvad flygter du fra?\nOrdene, du selv har valgt –\neller det, de ser?",
+    "Du skrev dette ned.\nVar det ikke sandt engang?\nHvor blev det af dig?",
+    "Hvis du sletter nu,\nhvem er det så, du forsøger\nat tie ihjel?",
+    "Der var en grund før –\nen tanke, en følelse.\nHar den fortjent glemsel?",
+    "Er du færdig nu?\nEller bare utålmodig\nefter at glemme?",
+    "Du bærer en stemme\nind i mørket, uden spor.\nEr du sikker nu?",
+    "Nogle ord skal væk.\nMen først må du fortælle\nhvad de gjorde ved dig.",
+    "Du har set forbi –\nmen hvad var det, du så her?\nSkriv det i et vers.",
+    "Slet kun det, du har\nmodet til at huske på\nnår tavsheden står.",
+]
 
 
 def parse_time_spec(value: str) -> Optional[int]:
@@ -106,6 +135,7 @@ class NoteInput(Input):
             and "ctrl+k" not in b.key
             and "ctrl+m" not in b.key
             and "ctrl+w" not in b.key
+            and "ctrl+delete" not in b.key
         )
     ]
 
@@ -138,8 +168,13 @@ class NoteTextArea(TextArea):
 
         # Check for the control key combinations we want to ignore.
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
-            # Stop the event so nothing else reacts to it.
+            # Ignore these shortcuts entirely
             event.stop()
+            return
+        if event.key == "ctrl+delete":
+            # Trigger the deletion prompt instead of deleting text
+            event.stop()
+            self.app.action_prompt_delete()
             return
 
         # Defer to the base ``TextArea`` implementation for everything else
@@ -332,7 +367,7 @@ class NotificationBar(Static):
         self.styles.opacity = 0
 
     def show(self, message: str, duration: float = 2.0) -> None:
-        """Show ``message`` for the given duration."""
+        """Display ``message`` briefly at the bottom of the screen."""
 
         self.update(message)
         self.display = True
@@ -346,6 +381,99 @@ class NotificationBar(Static):
     def _hide(self) -> None:
         self.display = False
         self.styles.opacity = 0
+
+
+class HaikuPrompt(Vertical):
+    """Modal shown to confirm deletion with a haiku."""
+
+    BINDINGS = [("escape", "cancel", "Cancel")]  # allow closing with Esc
+
+    class Confirm(Message):
+        """Sent when the user submits a valid haiku."""
+
+        def __init__(self) -> None:
+            super().__init__()
+
+    def __init__(self, lines: list[str], **kwargs) -> None:
+        """Store the rotating lines displayed under the heading."""
+        super().__init__(**kwargs)
+        self.lines = lines
+        self.index = 0  # which line to show next
+
+    def compose(self) -> ComposeResult:
+        # Heading with the fixed introduction plus a changing line
+        self.message = Static(id="haiku_message")
+        yield self.message
+        # Three inputs for the 5-7-5 poem
+        self.line1 = NoteInput(placeholder="5 stavelser", id="haiku1")
+        self.line2 = NoteInput(placeholder="7 stavelser", id="haiku2")
+        self.line3 = NoteInput(placeholder="5 stavelser", id="haiku3")
+        yield self.line1
+        yield self.line2
+        yield self.line3
+        # Submit button, initially disabled until the haiku passes validation
+        self.submit = Button("Jeg er klar til at give slip på disse ord!", id="haiku_submit", disabled=True)
+        yield self.submit
+
+    def on_mount(self) -> None:
+        self.display = False
+        self.visible = False
+        self.load_line()
+        self.line1.focus()
+
+    def load_line(self) -> None:
+        """Update the changing line from the rotating list."""
+        text = (
+            "Denne skrivemaskine er bygget for at skabe, ikke slette.\n" + self.lines[self.index]
+        )
+        self.message.update(text)
+        self.index = (self.index + 1) % len(self.lines)
+
+    def show_prompt(self) -> None:
+        """Display the modal."""
+        self.load_line()
+        self.visible = True
+        self.display = True
+        self.styles.opacity = 1.0
+        self.line1.value = ""
+        self.line2.value = ""
+        self.line3.value = ""
+        self.validate()
+        self.line1.focus()
+
+    def hide_prompt(self) -> None:
+        self.visible = False
+        self.display = False
+
+    def validate(self) -> None:
+        """Enable the submit button when the input resembles a haiku."""
+        def approx(text: str) -> int:
+            return sum(ch.lower() in "aeiouyæøå" for ch in text) + text.count(" ")
+
+        def ok(text: str, target: int) -> bool:
+            count = approx(text)
+            return target - 1 <= count <= target + 1
+
+        valid = (
+            ok(self.line1.value, 5)
+            and ok(self.line2.value, 7)
+            and ok(self.line3.value, 5)
+        )
+        self.submit.disabled = not valid
+
+    def on_input_changed(self, event: Input.Changed) -> None:  # type: ignore[override]
+        self.validate()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:  # type: ignore[override]
+        if not self.submit.disabled:
+            self.post_message(self.Confirm())
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
+        if event.button.id == "haiku_submit" and not self.submit.disabled:
+            self.post_message(self.Confirm())
+
+    def action_cancel(self) -> None:
+        self.hide_prompt()
 
 class NoteApp(App[None]):
     # Main application class.
@@ -364,6 +492,7 @@ class NoteApp(App[None]):
         Binding("ctrl+h", "noop", "", show=False, priority=True),
         Binding("ctrl+k", "noop", "", show=False, priority=True),
         Binding("ctrl+m", "noop", "", show=False, priority=True),
+        ("ctrl+delete", "prompt_delete", "Delete File"),
         ("escape", "close_menu", "Close Menu"),
         ("ctrl+pageup", "prev_tab", "Previous Tab"),
         ("ctrl+pagedown", "next_tab", "Next Tab"),
@@ -373,6 +502,7 @@ class NoteApp(App[None]):
     menu_visible = reactive(False)
     open_menu_visible = reactive(False)
     save_menu_visible = reactive(False)
+    haiku_visible = reactive(False)
     unsaved = reactive(False)
     hemingway = reactive(False)
     tab_bar_visible = reactive(True)
@@ -410,6 +540,9 @@ class NoteApp(App[None]):
         self.save_menu = SaveAsMenu(id="save_menu")
         self.save_menu.visible = False
         yield self.save_menu
+        self.haiku_prompt = HaikuPrompt(HAIKU_LINES, id="haiku_overlay")
+        self.haiku_prompt.visible = False
+        yield self.haiku_prompt
         self.status = Static(id="status_display")
         yield self.status
         self.notification = NotificationBar(id="notification_bar")
@@ -523,6 +656,11 @@ class NoteApp(App[None]):
         self.save_menu.visible = visible
         self.save_menu.display = visible
 
+    def watch_haiku_visible(self, visible: bool) -> None:
+        # Show or hide the haiku deletion prompt.
+        self.haiku_prompt.visible = visible
+        self.haiku_prompt.display = visible
+
     def save_tab_state(self) -> None:
         """Write the current open tabs to ``TAB_STATE_FILE``."""
 
@@ -625,6 +763,16 @@ class NoteApp(App[None]):
         # An action that intentionally does nothing.
         pass
 
+    def action_prompt_delete(self) -> None:
+        """Show the haiku confirmation prompt if a file is attached."""
+        active = self.tabs.active or "tab1"
+        path = self.file_map.get(active)
+        if path is None:
+            self.notification.show("Ingen fil at slette")
+            return
+        self.haiku_visible = True
+        self.haiku_prompt.show_prompt()
+
     def action_prev_tab(self) -> None:
         # Activate the previous note tab.
         tabs = list(self.file_map.keys())
@@ -722,6 +870,21 @@ class NoteApp(App[None]):
         self.save_menu_visible = False
         self.notification.show(f"Saved as {path.stem}")
         self.save_tab_state()
+
+    def on_haiku_prompt_confirm(self, message: HaikuPrompt.Confirm) -> None:
+        """Delete the current file after haiku confirmation."""
+        active = self.tabs.active or "tab1"
+        path = self.file_map.get(active)
+        if path and path.exists():
+            try:
+                path.unlink()
+            except Exception:
+                pass
+        self.file_map[active] = None
+        self.unsaved_map[active] = False
+        self.unsaved = False
+        self.haiku_visible = False
+        self.notification.show("Ordene falder. Tomheden vinder.")
 
     def action_close_tab(self) -> None:
         """Close the currently active tab if more than one is open."""
