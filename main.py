@@ -420,11 +420,11 @@ class HaikuPrompt(Vertical):
             disabled=True,
         )
         yield self.submit
-        # Buttons used on the first step: "Slet alligevel!" and "Annuler".
+        # Buttons used on the first step: "Slet alligevel!" and "Annuller".
         with Container(id="haiku_buttons"):
             self.accept = Button("Slet alligevel!", id="haiku_accept")
             yield self.accept
-            self.cancel_btn = Button("Annuler", id="haiku_cancel")
+            self.cancel_btn = Button("Annuller", id="haiku_cancel")
             yield self.cancel_btn
 
     def on_mount(self) -> None:
@@ -435,7 +435,7 @@ class HaikuPrompt(Vertical):
     def load_line(self) -> None:
         """Update the changing line from the rotating list."""
         text = (
-            "Denne skrivemaskine er bygget for at skabe, ikke slette.\n\n"
+            "Denne maskine er skabt for at skrive, ikke slette.\n\n"
             + self.lines[self.index]
         )
         self.message.update(text)

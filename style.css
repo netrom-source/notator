@@ -168,7 +168,7 @@ Input {
     margin-bottom: 1;
 }
 
-# Container for the "Slet alligevel!" and "Annuler" buttons.
+# Container for the "Slet alligevel!" and "Annuller" buttons.
 # Buttons appear side by side and are centered within the overlay.
 # This keeps the confirmation step compact and clear.
 # The layout and spacing can be adjusted in this CSS block without
