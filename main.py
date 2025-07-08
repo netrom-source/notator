@@ -399,27 +399,35 @@ class HaikuPrompt(Vertical):
         super().__init__(**kwargs)
         self.lines = lines
         self.index = 0  # which line to show next
+        self.step = 1  # track whether we're on the accept screen or inputs
 
     def compose(self) -> ComposeResult:
         # Heading with the fixed introduction plus a changing line
         self.message = Static(id="haiku_message")
         yield self.message
-        # Three inputs for the 5-7-5 poem
+        # Three inputs for the 5-7-5 poem. They are only shown after the user
+        # accepts the initial warning message.
         self.line1 = NoteInput(placeholder="5 stavelser", id="haiku1")
         self.line2 = NoteInput(placeholder="7 stavelser", id="haiku2")
         self.line3 = NoteInput(placeholder="5 stavelser", id="haiku3")
         yield self.line1
         yield self.line2
         yield self.line3
-        # Submit button, initially disabled until the haiku passes validation
-        self.submit = Button("Jeg er klar til at give slip på disse ord!", id="haiku_submit", disabled=True)
+        # Submit button, initially disabled until the haiku passes validation.
+        self.submit = Button(
+            "I overflod, beriges man af afsked!",
+            id="haiku_submit",
+            disabled=True,
+        )
         yield self.submit
+        # Accept button shown in the first step before the inputs appear.
+        self.accept = Button("Accepter", id="haiku_accept")
+        yield self.accept
 
     def on_mount(self) -> None:
         self.display = False
         self.visible = False
         self.load_line()
-        self.line1.focus()
 
     def load_line(self) -> None:
         """Update the changing line from the rotating list."""
@@ -432,18 +440,36 @@ class HaikuPrompt(Vertical):
     def show_prompt(self) -> None:
         """Display the modal."""
         self.load_line()
+        self.step = 1
         self.visible = True
         self.display = True
         self.styles.opacity = 1.0
+        # Start with only the accept button visible
+        self.line1.display = False
+        self.line2.display = False
+        self.line3.display = False
+        self.submit.display = False
+        self.accept.display = True
+        self.accept.focus()
+
+    def hide_prompt(self) -> None:
+        self.visible = False
+        self.display = False
+        self.step = 1
+
+    def start_inputs(self) -> None:
+        """Switch from the accept screen to the input fields."""
+        self.step = 2
+        self.line1.display = True
+        self.line2.display = True
+        self.line3.display = True
+        self.submit.display = True
+        self.accept.display = False
         self.line1.value = ""
         self.line2.value = ""
         self.line3.value = ""
         self.validate()
         self.line1.focus()
-
-    def hide_prompt(self) -> None:
-        self.visible = False
-        self.display = False
 
     def validate(self) -> None:
         """Enable the submit button when the input resembles a haiku."""
@@ -469,7 +495,9 @@ class HaikuPrompt(Vertical):
             self.post_message(self.Confirm())
 
     def on_button_pressed(self, event: Button.Pressed) -> None:  # type: ignore[override]
-        if event.button.id == "haiku_submit" and not self.submit.disabled:
+        if event.button.id == "haiku_accept":
+            self.start_inputs()
+        elif event.button.id == "haiku_submit" and not self.submit.disabled:
             self.post_message(self.Confirm())
 
     def action_cancel(self) -> None:

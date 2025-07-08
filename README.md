@@ -20,7 +20,9 @@ This project contains a minimal note-taking application written with [Textual](h
    indicates whether the current tab has unsaved changes and the window title
    shows an asterisk when modifications are pending.
 8. Toggle **Hemmingway mode** with `Ctrl+G` to disable deleting and moving the cursor backwards.
-9. Press `Ctrl+Delete` to delete the active note. Before removal you must compose a short haiku in the dialog that appears.
+9. Press `Ctrl+Delete` to delete the active note. A warning message is shown
+   first. After accepting it, compose a short haiku before the file is
+   removed.
 10. Open and save prompts appear as slim bars above the status line. When opening files, available documents are listed without the `.txt` extension for a cleaner look.
 11. Tabs reopen automatically from the previous session so your work continues where you left off.
 
