@@ -191,3 +191,8 @@ Input {
     margin-top: 1;
     content-align: center middle;
 }
+
+#haiku_submit {
+    align: center middle;
+    margin-top: 1;
+}

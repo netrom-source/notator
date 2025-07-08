@@ -407,9 +407,13 @@ class HaikuPrompt(Vertical):
         yield self.message
         # Three inputs for the 5-7-5 poem. They are only shown after the user
         # accepts the initial warning message.
-        self.line1 = NoteInput(placeholder="5 stavelser", id="haiku1")
-        self.line2 = NoteInput(placeholder="7 stavelser", id="haiku2")
-        self.line3 = NoteInput(placeholder="5 stavelser", id="haiku3")
+        # Each field is validated based on word count rather than syllables.
+        # The first and third lines must contain between 3 and 5 words while
+        # the middle line allows 4 to 7 words. The placeholders reflect this
+        # range so the user knows the expected length.
+        self.line1 = NoteInput(placeholder="3-5 ord", id="haiku1")
+        self.line2 = NoteInput(placeholder="4-7 ord", id="haiku2")
+        self.line3 = NoteInput(placeholder="3-5 ord", id="haiku3")
         yield self.line1
         yield self.line2
         yield self.line3
@@ -481,16 +485,25 @@ class HaikuPrompt(Vertical):
         self.line1.focus()
 
     def validate(self) -> None:
-        """Enable the submit button when the input contains 5/7/5 words."""
+        """Enable the submit button when the input contains a short haiku.
+
+        Each line is checked for a minimum and maximum number of words. The
+        first and third lines require between three and five words, while the
+        second line allows between four and seven. This provides a little
+        flexibility so the user isn't forced to match an exact count.
+        """
 
         def count_words(text: str) -> int:
             # Split on whitespace to count words; ignore extra spaces
             return len(text.strip().split())
 
+        w1 = count_words(self.line1.value)
+        w2 = count_words(self.line2.value)
+        w3 = count_words(self.line3.value)
         valid = (
-            count_words(self.line1.value) == 5
-            and count_words(self.line2.value) == 7
-            and count_words(self.line3.value) == 5
+            3 <= w1 <= 5
+            and 4 <= w2 <= 7
+            and 3 <= w3 <= 5
         )
         self.submit.disabled = not valid
 
@@ -511,6 +524,35 @@ class HaikuPrompt(Vertical):
 
     def action_cancel(self) -> None:
         self.hide_prompt()
+
+    def on_key(self, event: events.Key) -> None:
+        """Keyboard navigation inside the haiku prompt."""
+
+        if self.step == 1:
+            # The first step shows the accept/cancel buttons side by side.
+            if event.key in {"left", "right"}:
+                # Toggle focus between the two buttons
+                if self.accept.has_focus:
+                    self.cancel_btn.focus()
+                else:
+                    self.accept.focus()
+                event.stop()
+        elif self.step == 2:
+            # Navigate between the three inputs and the submit button.
+            if event.key == "down":
+                if self.line1.has_focus:
+                    self.line2.focus(); event.stop()
+                elif self.line2.has_focus:
+                    self.line3.focus(); event.stop()
+                elif self.line3.has_focus:
+                    self.submit.focus(); event.stop()
+            elif event.key == "up":
+                if self.submit.has_focus:
+                    self.line3.focus(); event.stop()
+                elif self.line3.has_focus:
+                    self.line2.focus(); event.stop()
+                elif self.line2.has_focus:
+                    self.line1.focus(); event.stop()
 
 class NoteApp(App[None]):
     # Main application class.
