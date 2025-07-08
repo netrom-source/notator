@@ -411,9 +411,12 @@ class HaikuPrompt(Vertical):
         # The first and third lines must contain between 3 and 5 words while
         # the middle line allows 4 to 7 words. The placeholders reflect this
         # range so the user knows the expected length.
-        self.line1 = NoteInput(placeholder="3-5 ord", id="haiku1")
-        self.line2 = NoteInput(placeholder="4-7 ord", id="haiku2")
-        self.line3 = NoteInput(placeholder="3-5 ord", id="haiku3")
+        # Placeholders reference syllables rather than words for a more
+        # traditional haiku description even though validation still checks
+        # word counts.
+        self.line1 = NoteInput(placeholder="5 stavelser", id="haiku1")
+        self.line2 = NoteInput(placeholder="7 stavelser", id="haiku2")
+        self.line3 = NoteInput(placeholder="5 stavelser", id="haiku3")
         yield self.line1
         yield self.line2
         yield self.line3
@@ -460,6 +463,7 @@ class HaikuPrompt(Vertical):
         self.line3.display = False
         self.submit.display = False
         self.accept.display = True
+        self.cancel_btn.display = True
         self.accept.focus()
 
     def hide_prompt(self) -> None:
@@ -475,6 +479,7 @@ class HaikuPrompt(Vertical):
         self.line3.display = True
         self.submit.display = True
         self.accept.display = False
+        self.cancel_btn.display = False
         # Show instruction heading for the haiku input stage
         self.message.update("Skriv et haiku for at slette!")
         self.message.display = True
@@ -964,6 +969,8 @@ class NoteApp(App[None]):
         self.unsaved = False
         self.haiku_visible = False
         self.notification.show("Ordene falder. Tomheden vinder.")
+        # Close the tab containing the deleted file
+        self.close_current_tab()
 
     def action_close_tab(self) -> None:
         """Close the currently active tab if more than one is open."""
@@ -986,6 +993,29 @@ class NoteApp(App[None]):
             if note_area:
                 note_area.focus()
         self.notification.show("Tab closed")
+        self.save_tab_state()
+
+    def close_current_tab(self) -> None:
+        """Close the active tab regardless of how many remain."""
+        active = self.tabs.active or "tab1"
+        panes = list(self.file_map.keys())
+        index = panes.index(active)
+        self.tabs.remove_pane(active)
+        self.unsaved_map.pop(active, None)
+        self.file_map.pop(active, None)
+        self.textareas.pop(active, None)
+        if panes:
+            panes.remove(active)
+        if panes:
+            new_index = index - 1 if index > 0 else 0
+            new_active = panes[new_index]
+            self.tabs.active = new_active
+            note_area = self.textareas.get(new_active)
+            if note_area:
+                note_area.focus()
+        else:
+            # If no tabs remain create a new empty one
+            self.action_new_tab()
         self.save_tab_state()
 
     def action_toggle_tab_bar(self) -> None:

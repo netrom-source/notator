@@ -21,9 +21,11 @@ This project contains a minimal note-taking application written with [Textual](h
    shows an asterisk when modifications are pending.
 8. Toggle **Hemmingway mode** with `Ctrl+G` to disable deleting and moving the cursor backwards.
 9. Press `Ctrl+Delete` to delete the active note. A warning message is shown
-   first. After accepting it, compose a short haiku (3–5 words, 4–7 words,
-   3–5 words) before the file is removed. Use the arrow keys to move between
-   the lines and down to the confirmation button.
+  first. After accepting it, compose a short haiku (3–5 words, 4–7 words,
+  3–5 words) before the file is removed. The input fields are labelled
+  "5 stavelser", "7 stavelser" and "5 stavelser" to hint at the rhythm.
+  Use the arrow keys to move between the lines and down to the confirmation
+  button.
 10. In the first step you can switch between "Slet alligevel!" and "Annuller"
     with the arrow keys.
 11. Open and save prompts appear as slim bars above the status line. When opening files, available documents are listed without the `.txt` extension for a cleaner look.

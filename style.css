@@ -155,6 +155,8 @@ Input {
     layer: overlay;
     width: 80%;
     height: auto;
+    max-height: 90%;
+    overflow: auto;
     border: solid #888888;
     padding: 1 2;
     background: #303030;
