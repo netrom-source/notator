@@ -36,12 +36,12 @@ from textual import events
 from textual.widgets import (
     Input,
     Static,
+    TextArea,
     TabbedContent,
     TabPane,
     OptionList,
     Button,
 )
-from prompt_editor import NoteEditor
 from textual.widgets.option_list import Option
     
 
@@ -152,6 +152,36 @@ class NoteInput(Input):
             and "ctrl+delete" not in b.key
         )
     ]
+
+
+class NoteEditor(TextArea):
+    """Text area used for editing notes."""
+
+    BINDINGS = [
+        b
+        for b in TextArea.BINDINGS
+        if (
+            "ctrl+h" not in b.key
+            and "ctrl+k" not in b.key
+            and "ctrl+m" not in b.key
+            and "ctrl+w" not in b.key
+            and "ctrl+delete" not in b.key
+        )
+    ]
+
+    def __init__(self, text: str = "", **kwargs: object) -> None:
+        super().__init__(text=text, soft_wrap=True, **kwargs)
+        self.cursor_blink = True
+
+    async def _on_key(self, event: events.Key) -> None:
+        if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
+            event.stop()
+            return
+        if event.key == "ctrl+delete":
+            event.stop()
+            self.app.action_prompt_delete()
+            return
+        await super()._on_key(event)
 
 
 
