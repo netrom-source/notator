@@ -27,23 +27,33 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from textual.app import App, ComposeResult
-from textual.binding import Binding
-from textual.containers import Container, Vertical
-from textual.message import Message
-from textual.reactive import reactive
-from textual import events
-from textual.widgets import (
-    Input,
-    Static,
-    TabbedContent,
-    TabPane,
-    OptionList,
-    Button,
-)
+try:
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Container, Vertical
+    from textual.message import Message
+    from textual.reactive import reactive
+    from textual import events
+    from textual.widgets import (
+        Input,
+        Static,
+        TabbedContent,
+        TabPane,
+        OptionList,
+        Button,
+    )
+    from textual.widgets.option_list import Option
+except ModuleNotFoundError as exc:
+    raise SystemExit("This application requires the 'textual' package."
+                     " Install it with 'pip install textual' and try again.") from exc
 
-from prompt_editor import NoteEditor
-from textual.widgets.option_list import Option
+try:
+    from prompt_editor import NoteEditor
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        "This application requires the local module 'prompt_editor.py'."
+    ) from exc
+
 
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
