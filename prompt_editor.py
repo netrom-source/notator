@@ -38,6 +38,7 @@ class NoteEditor(Widget):
             # ``copy_selection`` already returns ``ClipboardData``
             # so it can be stored directly on the clipboard.
             self._clipboard.set_data(data)
+            
 
     def _paste(self, event: object) -> None:
         if data := self._clipboard.get_data():
@@ -53,6 +54,7 @@ class NoteEditor(Widget):
     def _redo(self, event: object) -> None:
         self._buffer.redo()
 
+        
     async def _on_key(self, event: events.Key) -> None:
         """Translate key presses to buffer operations."""
         key = event.key
@@ -129,3 +131,4 @@ class NoteEditor(Widget):
                 pos = None
         text = "\n".join(lines)
         return Text(text)
+

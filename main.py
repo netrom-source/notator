@@ -54,6 +54,7 @@ except ModuleNotFoundError as exc:
         "This application requires the local module 'prompt_editor.py'."
     ) from exc
 
+
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
 DATA_DIR = Path("data")
