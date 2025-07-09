@@ -23,36 +23,28 @@ import sys
 
 # Ensure custom modules in the same directory can be imported when running the script
 sys.path.insert(0, os.path.dirname(__file__))
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
-try:
-    from textual.app import App, ComposeResult
-    from textual.binding import Binding
-    from textual.containers import Container, Vertical
-    from textual.message import Message
-    from textual.reactive import reactive
-    from textual import events
-    from textual.widgets import (
-        Input,
-        Static,
-        TabbedContent,
-        TabPane,
-        OptionList,
-        Button,
-    )
-    from textual.widgets.option_list import Option
-except ModuleNotFoundError as exc:
-    raise SystemExit("This application requires the 'textual' package."
-                     " Install it with 'pip install textual' and try again.") from exc
-
-try:
-    from prompt_editor import NoteEditor
-except ModuleNotFoundError as exc:
-    raise SystemExit(
-        "This application requires the local module 'prompt_editor.py'."
-    ) from exc
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Vertical
+from textual.message import Message
+from textual.reactive import reactive
+from textual import events
+from textual.widgets import (
+    Input,
+    Static,
+    TextArea,
+    TabbedContent,
+    TabPane,
+    OptionList,
+    Button,
+)
+from textual.widgets._text_area import Selection
+from textual.widgets.option_list import Option
+from rich.text import Text
     
 
 # Initial note files stored on disk. ``Path`` works across operating systems
@@ -106,6 +98,40 @@ HAIKU_LINES = [
     "Slet kun det, du har\nmodet til at huske på\nnår tavsheden står.",
 ]
 
+# Words highlighted in Ordforsagelse mode when repeated
+FILLER_WORDS = {
+    "men", "måske", "lidt", "bare", "virkelig", "faktisk", "nok", "altså",
+    "jo", "ligesom", "nogle", "gange", "næsten", "egentligt", "sådan",
+    "meget", "for", "det", "meste", "lidt", "som", "mere", "ret",
+    "total", "helt", "vildt", "næsten", "aldrig", "på", "en", "måde", "smule",
+}
+
+# Questions shown after long pauses in Tænkepauser mode
+PAUSE_QUESTIONS = [
+    "Hvad venter du på?",
+    "Er du i gang med at redigere i dit hoved?",
+    "Vil du hellere fortryde end skrive?",
+    "Hvis du ikke skrev det her – hvem ville?",
+    "Hvad ville der ske, hvis du bare skrev videre?",
+    "Er det dig, der skriver – eller din frygt for at skrive forkert?",
+    "Hvem forsøger du at skåne lige nu?",
+    "Hvad prøver du at holde ude af teksten?",
+    "Hvis du skrev det ærlige – ville du turde læse det bagefter?",
+    "Er du i gang med at bevise noget, eller finde noget?",
+    "Hvad gemmer sig bag det, du ikke skriver?",
+    "Ville det være værre at fejle – end aldrig at få det skrevet?",
+    "Skal dette forstås, eller bare skrives?",
+    "Er tavsheden din ven – eller din undskyldning?",
+    "Er du stadig forfatter, når du ikke tør skrive?",
+    "Hvis du slettede censuren – hvad ville første sætning være?",
+    "Skriver du for at blive set – eller for at forsvinde?",
+    "Er du klar til at lægge din indre redaktør ned?",
+    "Hvad ville teksten sige, hvis den ikke var bange for dig?",
+    "Er du i gang med at skabe – eller med at kontrollere?",
+    "Hvad prøver du at undgå at føle ved at undgå at skrive?",
+    "Hvis du stoppede med at imponere – hvad ville du begynde at sige?",
+]
+
 
 def parse_time_spec(value: str) -> Optional[int]:
     # Convert a textual time specification to seconds.
@@ -136,6 +162,25 @@ class CountdownState:
     last_started: float = 0.0  # time when timer was last started
 
 
+@dataclass
+class WritingModes:
+    """Track the state of experimental writing modes."""
+
+    invisible_ink: bool = False
+    blind_writing: bool = False
+    word_shade: bool = False
+    shadow_text: bool = False
+    blind_start: bool = False
+    think_pauses: bool = False
+    self_destruct: bool = False
+    freeze_penalty: bool = False
+    # Timing helpers used by several modes
+    self_destruct_end: float = 0.0
+    last_activity: float = field(default_factory=time.time)
+    freeze_end: float = 0.0
+    last_delete_time: float = 0.0
+
+
 class TimerDisplay(Static):
     # Widget that shows the remaining time in ``mm:ss`` format.
 
@@ -162,6 +207,92 @@ class NoteInput(Input):
             and "ctrl+delete" not in b.key
         )
     ]
+
+
+class NoteEditor(TextArea):
+    """Text area used for editing notes."""
+
+    BINDINGS = [
+        b
+        for b in TextArea.BINDINGS
+        if (
+            "ctrl+h" not in b.key
+            and "ctrl+k" not in b.key
+            and "ctrl+m" not in b.key
+            and "ctrl+w" not in b.key
+            and "ctrl+delete" not in b.key
+        )
+    ]
+
+    focus_sentence = reactive(False)
+
+    def __init__(self, text: str = "", **kwargs: object) -> None:
+        super().__init__(text=text, soft_wrap=True, **kwargs)
+        self.cursor_blink = False
+        self._cursor_index = 0
+        self._active_start = 0
+        # Dictionary of word counts used for Ordforsagelse mode
+        self.word_counts: Dict[str, int] = {}
+        self.word_counts = self.compute_word_counts()
+
+    def update_indices(self) -> None:
+        """Recompute cursor and active sentence indices."""
+        self._cursor_index = self.document.get_index_from_location(
+            self.cursor_location
+        )
+        before_cursor = self.document.text[: self._cursor_index]
+        last_period = before_cursor.rfind(".")
+        self._active_start = last_period + 1 if last_period != -1 else 0
+
+    def compute_word_counts(self) -> Dict[str, int]:
+        """Return a mapping of words to their frequency in the text."""
+        counts: Dict[str, int] = {}
+        for word in re.findall(r"\b\w+\b", self.text.lower()):
+            counts[word] = counts.get(word, 0) + 1
+        return counts
+
+    async def _on_key(self, event: events.Key) -> None:
+        if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
+            event.stop()
+            return
+        if event.key == "ctrl+delete":
+            event.stop()
+            self.app.action_prompt_delete()
+            return
+        await super()._on_key(event)
+        self.app.register_activity()
+        if self.focus_sentence:
+            self.update_indices()
+            self.refresh()
+
+    def _watch_selection(
+        self, previous_selection: Selection, selection: Selection
+    ) -> None:  # type: ignore[override]
+        super()._watch_selection(previous_selection, selection)
+        self.app.register_activity()
+        if self.focus_sentence:
+            self.update_indices()
+            self.refresh()
+
+    def get_line(self, line_index: int) -> Text:  # type: ignore[override]
+        line = super().get_line(line_index)
+        if self.app.modes.word_shade:
+            # Dim filler words that appear multiple times
+            for match in re.finditer(r"\b\w+\b", line.plain):
+                word = match.group(0).lower()
+                if word in FILLER_WORDS and self.word_counts.get(word, 0) > 1:
+                    line.stylize("#555555", match.start(), match.end())
+        if self.focus_sentence:
+            line_start = self.document.get_index_from_location((line_index, 0))
+            line_end = line_start + len(line.plain)
+            gray_end = min(self._active_start, line_end)
+            if gray_end > line_start:
+                line.stylize("#666666", 0, gray_end - line_start)
+            active_start = max(self._active_start, line_start)
+            active_end = min(self._cursor_index, line_end)
+            if active_end > active_start:
+                line.stylize("#ffffff", active_start - line_start, active_end - line_start)
+        return line
 
 
 
@@ -639,6 +770,49 @@ class HaikuPrompt(Vertical):
                 elif self.line2.has_focus:
                     self.line1.focus(); event.stop()
 
+class ModeMenu(Vertical):
+    """Menu allowing toggling of experimental writing modes."""
+
+    BINDINGS = [("escape", "close_menu", "Luk")]
+
+    class Toggle(Message):
+        """Sent when the user selects a mode to toggle."""
+
+        def __init__(self, mode: str) -> None:
+            super().__init__()
+            self.mode = mode
+
+    def compose(self) -> ComposeResult:
+        self.options = OptionList(id="mode_options")
+        yield self.options
+
+    def on_mount(self) -> None:
+        self.refresh_options()
+        self.options.focus()
+
+    def refresh_options(self) -> None:
+        """Update menu entries based on current mode states."""
+        self.options.clear_options()
+        modes = [
+            ("invisible_ink", "Usynlig bl\u00e6k"),
+            ("blind_writing", "Skriv i blinde"),
+            ("word_shade", "Ordforsagelse"),
+            ("shadow_text", "Skyggetekst"),
+            ("blind_start", "Blindstart"),
+            ("think_pauses", "T\u00e6nkepauser"),
+            ("self_destruct", "Selvdestruktion"),
+            ("freeze_penalty", "Nedskrivningsd\u00f8dlinje"),
+        ]
+        for attr, label in modes:
+            state = "ON" if getattr(self.app.modes, attr) else "OFF"
+            self.options.add_option(Option(f"{label} [{state}]", id=attr))
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        self.post_message(self.Toggle(event.option.id))
+
+    def action_close_menu(self) -> None:
+        self.app.action_toggle_mode_menu()
+
 class NoteApp(App[None]):
     # Main application class.
 
@@ -657,6 +831,8 @@ class NoteApp(App[None]):
         Binding("ctrl+k", "noop", "", show=False, priority=True),
         Binding("ctrl+m", "noop", "", show=False, priority=True),
         ("ctrl+delete", "prompt_delete", "Slet fil"),
+        ("ctrl+j", "toggle_focus_sentence", "Fokus-s\u00e6tning"),
+        ("ctrl+0", "toggle_mode_menu", "Tilstands-menu"),
         ("escape", "close_menu", "Luk menu"),
         ("ctrl+pageup", "prev_tab", "Forrige fane"),
         ("ctrl+pagedown", "next_tab", "Næste fane"),
@@ -669,6 +845,7 @@ class NoteApp(App[None]):
     save_menu_visible = reactive(False)
     haiku_visible = reactive(False)
     quote_visible = reactive(False)
+    mode_menu_visible = reactive(False)
     unsaved = reactive(False)
     hemingway = reactive(False)
     tab_bar_visible = reactive(True)
@@ -687,6 +864,10 @@ class NoteApp(App[None]):
         self.tab_counter = 2
         # Track when Ctrl+S was last pressed to support rename on double press
         self._last_save_time = 0.0
+        # Store previous text for each tab to track deletions
+        self.prev_text: Dict[str, str] = {}
+        # Current experimental writing modes and their timers
+        self.modes = WritingModes()
         # Quote management: list of all quotes and which have been shown
         self.quotes: list[str] = []
         self.shown_quotes: set[str] = set()
@@ -725,6 +906,10 @@ class NoteApp(App[None]):
         self.quote_overlay = QuoteOverlay(id="quote_overlay")
         self.quote_overlay.visible = False
         yield self.quote_overlay
+        # Menu for toggling experimental writing modes
+        self.mode_menu = ModeMenu(id="mode_menu")
+        self.mode_menu.visible = False
+        yield self.mode_menu
 
     def on_mount(self) -> None:
         """Load tabs from the previous session or the default files."""
@@ -791,13 +976,15 @@ class NoteApp(App[None]):
         if active and active in self.textareas:
             # Focus after mount to avoid "NoMatches" errors
             self.call_later(self.textareas[active].focus)
-        self.status.update("Gemt")
-        self.title = APP_TITLE
+        self.unsaved = False
+        self.update_status()
         from textual.widgets import Tabs
         self.tab_bar = self.tabs.query_one(Tabs)
         self.tab_bar.visible = True
         # Load quotes from file on startup
         self.load_quotes()
+        # Periodic check for experimental modes
+        self.set_interval(1, self.check_modes)
 
     def watch_countdown(self, countdown: CountdownState) -> None:
         # Update the timer display whenever the countdown changes.
@@ -808,15 +995,7 @@ class NoteApp(App[None]):
 
     def watch_unsaved(self, unsaved: bool) -> None:
         # Update the status bar whenever the save state changes.
-        if unsaved:
-            self.status.update("Ændringer ikke gemt")
-            self.status.add_class("modified")
-            # Add an asterisk to the window title to indicate unsaved changes.
-            self.title = APP_TITLE + "*"
-        else:
-            self.status.update("Gemt")
-            self.status.remove_class("modified")
-            self.title = APP_TITLE
+        self.update_status()
 
     def watch_tab_bar_visible(self, visible: bool) -> None:
         # Show or hide the tab bar widget without leaving a blank area.
@@ -845,6 +1024,92 @@ class NoteApp(App[None]):
         # Show or hide the quote overlay.
         self.quote_overlay.visible = visible
         self.quote_overlay.display = visible
+
+    def watch_mode_menu_visible(self, visible: bool) -> None:
+        """Show or hide the experimental mode menu."""
+        self.mode_menu.visible = visible
+        self.mode_menu.display = visible
+        if visible:
+            self.mode_menu.refresh_options()
+            self.mode_menu.options.focus()
+
+    def update_status(self) -> None:
+        """Refresh the bottom status bar with mode and save state."""
+        state = "Ændringer ikke gemt" if self.unsaved else "Gemt"
+        if self.unsaved:
+            self.status.add_class("modified")
+            self.title = APP_TITLE + "*"
+        else:
+            self.status.remove_class("modified")
+            self.title = APP_TITLE
+        active_modes = [
+            name.replace("_", " ")
+            for name, value in self.modes.__dict__.items()
+            if isinstance(value, bool) and value
+        ]
+        if active_modes:
+            mode_text = " | Tilstande: " + ", ".join(active_modes)
+        else:
+            mode_text = ""
+        self.status.update(state + mode_text)
+
+    def register_activity(self) -> None:
+        """Record the time of the latest user interaction."""
+        self.modes.last_activity = time.time()
+
+    def check_modes(self) -> None:
+        """Handle timers for the experimental writing modes."""
+        now = time.time()
+        active = self.tabs.active or "tab1"
+        editor = self.textareas.get(active)
+        if editor is None:
+            return
+        # Blindstart hides text briefly on startup
+        if self.modes.blind_start:
+            if not hasattr(self, "_blind_start_end"):
+                self._blind_start_end = time.time() + 60
+            if now < self._blind_start_end:
+                editor.styles.opacity = 0
+            else:
+                self.modes.blind_start = False
+                editor.styles.opacity = 1
+        # Invisible ink removes words when idle
+        if self.modes.invisible_ink and now - self.modes.last_activity > 5:
+            words = editor.text.rstrip().split()
+            if words:
+                words.pop()
+                editor.text = " ".join(words)
+                self.register_activity()
+        # Blind writing hides the editor
+        if self.modes.blind_writing:
+            editor.styles.opacity = 0
+        else:
+            editor.styles.opacity = 1
+        # Think pauses show a random question after inactivity
+        if self.modes.think_pauses and now - self.modes.last_activity > 30:
+            question = random.choice(PAUSE_QUESTIONS)
+            self.notification.show(question, duration=5)
+            self.register_activity()
+        # Freeze penalty locks the editor after inactivity
+        if self.modes.freeze_penalty:
+            if self.modes.freeze_end > now:
+                editor.disabled = True
+            elif now - self.modes.last_activity > 120:
+                self.modes.freeze_end = now + 300
+                editor.disabled = True
+                self.notification.show(
+                    "Du satte dig her for at skrive. Hvad flygtede du fra?",
+                    duration=5,
+                )
+            else:
+                editor.disabled = False
+        # Self-destruct timer
+        if self.modes.self_destruct and self.modes.self_destruct_end:
+            if now >= self.modes.self_destruct_end:
+                editor.text = ""
+                self.modes.self_destruct = False
+                self.modes.self_destruct_end = 0.0
+                self.notification.show("Teksten er forsvundet!", duration=5)
 
     def save_tab_state(self) -> None:
         """Write the current open tabs to ``TAB_STATE_FILE``."""
@@ -943,6 +1208,27 @@ class NoteApp(App[None]):
         self.hemingway = not self.hemingway
         state = "TIL" if self.hemingway else "FRA"
         self.notification.show(f"Hemmingway-tilstand {state}")
+
+    def action_toggle_focus_sentence(self) -> None:
+        """Toggle highlighting of the current sentence."""
+        active = self.tabs.active or "tab1"
+        editor = self.textareas.get(active)
+        if editor is None:
+            return
+        editor.focus_sentence = not editor.focus_sentence
+        editor.update_indices()
+        editor.refresh()
+        state = "TIL" if editor.focus_sentence else "FRA"
+        self.notification.show(f"Fokus-s\u00e6tning {state}")
+
+    def action_toggle_mode_menu(self) -> None:
+        """Show or hide the experimental mode menu."""
+        self.mode_menu_visible = not self.mode_menu_visible
+        if not self.mode_menu_visible:
+            active = self.tabs.active or "tab1"
+            editor = self.textareas.get(active)
+            if editor:
+                editor.focus()
 
     def action_noop(self) -> None:
         # An action that intentionally does nothing.
@@ -1236,6 +1522,27 @@ class NoteApp(App[None]):
         active = self.tabs.active or "tab1"
         self.unsaved_map[active] = True
         self.unsaved = True
+        self.register_activity()
+        # Track deletions for shadow text
+        current = event.sender.text
+        previous = self.prev_text.get(active, "")
+        if self.modes.shadow_text and len(current) < len(previous):
+            removed = previous[len(current):]
+            if removed.strip():
+                shadow = DATA_DIR / f"{active}_shadow.txt"
+                with shadow.open("a", encoding="utf-8") as f:
+                    # Group deletions if within a minute of the last deletion
+                    now = time.time()
+                    if now - self.modes.last_delete_time > 60:
+                        f.write("\n---\n")
+                    f.write(removed + "\n")
+                    self.modes.last_delete_time = now
+        self.prev_text[active] = current
+        # Update filler word counts for word shading
+        if self.modes.word_shade:
+            editor = self.textareas.get(active)
+            if editor:
+                editor.word_counts = editor.compute_word_counts()
 
     def on_timer_menu_set_time(self, message: TimerMenu.SetTime) -> None:
         # Handle the duration chosen in the timer menu.
@@ -1247,6 +1554,20 @@ class NoteApp(App[None]):
         self.start_timer(message.seconds)
         if self.menu_visible:
             self.action_toggle_menu()
+
+    def on_mode_menu_toggle(self, message: ModeMenu.Toggle) -> None:
+        """Toggle one of the experimental modes."""
+        attr = message.mode
+        current = getattr(self.modes, attr)
+        setattr(self.modes, attr, not current)
+        if attr == "self_destruct":
+            if not current:
+                # Default 30 minute timer
+                self.modes.self_destruct_end = time.time() + 1800
+            else:
+                self.modes.self_destruct_end = 0.0
+        self.mode_menu.refresh_options()
+        self.update_status()
 
     def on_tabbed_content_tab_activated(self, message: TabbedContent.TabActivated) -> None:
         # Update status when switching tabs.
