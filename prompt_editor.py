@@ -39,6 +39,8 @@ class NoteEditor(Widget):
             # so it can be stored directly on the clipboard.
             self._clipboard.set_data(data)
 
+            
+
     def _paste(self, event: object) -> None:
         if data := self._clipboard.get_data():
             self._buffer.paste_clipboard_data(data)
@@ -57,6 +59,7 @@ class NoteEditor(Widget):
         """Translate key presses to buffer operations."""
         key = event.key.lower()
         handled = True
+
 
         if key == "left":
             self._buffer.cursor_left()
@@ -81,16 +84,19 @@ class NoteEditor(Widget):
         elif key == "ctrl+y":
             self._redo(None)
         elif key in {"enter", "return"}:
+
             self._buffer.insert_text("\n")
         elif event.character:
             self._buffer.insert_text(event.character)
         else:
+
             handled = False
 
         if handled:
             event.stop()
             self.post_message(self.Changed(self))
             self.refresh()
+
 
 
     def get_text(self) -> str:
@@ -114,6 +120,7 @@ class NoteEditor(Widget):
         """Render the buffer with a visible cursor and soft wrapping."""
         width = self.size.width or 80
         doc = self._buffer.document
+
         text = doc.text
         cursor = doc.cursor_position
 
