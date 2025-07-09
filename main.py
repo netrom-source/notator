@@ -45,7 +45,7 @@ from textual.widgets import (
 from textual.widgets._text_area import Selection
 from textual.widgets.option_list import Option
 from rich.text import Text
-    
+
 
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
@@ -223,7 +223,7 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
-
+    
     focus_sentence = reactive(False)
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
@@ -260,6 +260,7 @@ class NoteEditor(TextArea):
             self.app.action_prompt_delete()
             return
         await super()._on_key(event)
+
         self.app.register_activity()
         if self.focus_sentence:
             self.update_indices()
