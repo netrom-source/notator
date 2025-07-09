@@ -33,9 +33,11 @@ class NoteEditor(TextArea):
         super().__init__(
             text=text,
             soft_wrap=True,
-            cursor_blink=True,
             **kwargs,
         )
+        # Enable blinking cursor after initialization since ``TextArea`` does
+        # not accept the parameter in the constructor.
+        self.cursor_blink = True
         # Underlying prompt_toolkit structures for advanced editing features
         self._clipboard = InMemoryClipboard()
         self._buffer = Buffer(document=Document(text, len(text)), multiline=True, enable_history=True)
