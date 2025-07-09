@@ -38,6 +38,7 @@ class NoteEditor(Widget):
             # ``copy_selection`` already returns ``ClipboardData``
             # so it can be stored directly on the clipboard.
             self._clipboard.set_data(data)
+
             
 
     def _paste(self, event: object) -> None:
@@ -54,10 +55,12 @@ class NoteEditor(Widget):
     def _redo(self, event: object) -> None:
         self._buffer.redo()
 
-        
     async def _on_key(self, event: events.Key) -> None:
         """Translate key presses to buffer operations."""
-        key = event.key
+        key = event.key.lower()
+        handled = True
+
+
         if key == "left":
             self._buffer.cursor_left()
         elif key == "right":
@@ -81,16 +84,19 @@ class NoteEditor(Widget):
         elif key == "ctrl+y":
             self._redo(None)
         elif key in {"enter", "return"}:
-            # Insert a newline on Enter/Return.
+
             self._buffer.insert_text("\n")
         elif event.character:
             self._buffer.insert_text(event.character)
         else:
-            return
 
-        event.stop()
-        self.post_message(self.Changed(self))
-        self.refresh()
+            handled = False
+
+        if handled:
+            event.stop()
+            self.post_message(self.Changed(self))
+            self.refresh()
+
 
 
     def get_text(self) -> str:
@@ -114,21 +120,33 @@ class NoteEditor(Widget):
         """Render the buffer with a visible cursor and soft wrapping."""
         width = self.size.width or 80
         doc = self._buffer.document
-        lines = []
-        cursor_line = doc.cursor_position_row
-        cursor_col = doc.cursor_position_col
 
-        for i, line in enumerate(doc.lines):
-            wrapped = [line[j:j+width] for j in range(0, len(line), width)] or [""]
-            for w_index, wrapped_line in enumerate(wrapped):
-                if i == cursor_line and w_index == 0:
-                    pos = cursor_col
-                else:
-                    pos = None
-                if pos is not None and pos <= len(wrapped_line):
-                    wrapped_line = wrapped_line[:pos] + "▍" + wrapped_line[pos:]
-                lines.append(wrapped_line)
-                pos = None
-        text = "\n".join(lines)
-        return Text(text)
+        text = doc.text
+        cursor = doc.cursor_position
 
+        lines: list[str] = []
+        current = ""
+        col = 0
+
+        for i, ch in enumerate(text):
+            if i == cursor:
+                current += "▍"
+            if ch == "\n":
+                lines.append(current)
+                current = ""
+                col = 0
+                continue
+            current += ch
+            col += 1
+            if col >= width:
+                lines.append(current)
+                current = ""
+                col = 0
+
+        if cursor == len(text):
+            current += "▍"
+        lines.append(current)
+        if not lines:
+            lines.append("▍")
+
+        return Text("\n".join(lines))
