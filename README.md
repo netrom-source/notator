@@ -1,11 +1,11 @@
 
-This project contains a minimal note-taking application written with [Textual](https://textual.textualize.io/). The interface lets you type notes in a `TextArea` while an optional countdown timer can help manage your time.
+This project contains a minimal note-taking application written with [Textual](https://textual.textualize.io/). Notes are edited using a custom `NoteEditor` built on top of *prompt_toolkit* which provides soft wrapping and clipboard shortcuts. An optional countdown timer can help manage your time.
 All interface labels and notifications are in Danish for localization.
 
 ## Usage
 
-1. Install dependencies with `pip install textual`.
-2. Run the app using `python main.py`.
+1. Install dependencies with `pip install textual prompt_toolkit`.
+2. From the project folder run the app using `python main.py`.
 3. Create additional tabs with `Ctrl+N` or open an existing file with `Ctrl+O`.
    Close the active tab with `Ctrl+W` and hide/show the tab bar with `Ctrl+B`.
    Switch between tabs by clicking the labels or pressing `Ctrl+PageUp`/`Ctrl+PageDown`.
@@ -39,5 +39,4 @@ Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled with high pri
 
 All styling can be changed in `style.css`. The default sheet now uses muted
 earth tones with a dusty green timer bar. Notification messages slide up from the
-bottom and fade away after a short delay. Adjust the palette and animations in
-the CSS as you see fit.
+bottom and fade away after a short delay. Adjust the palette and animations inthe CSS as you see fit.
