@@ -2,36 +2,60 @@ from __future__ import annotations
 
 """Custom text editor built on prompt_toolkit."""
 
+from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
+from prompt_toolkit.layout import Layout
+from prompt_toolkit.layout.controls import BufferControl
+from prompt_toolkit.layout.containers import Window
+from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.clipboard import InMemoryClipboard, ClipboardData
 
-from textual.widget import Widget
 from textual import events
-from textual.message import Message
-from rich.text import Text
+from textual.widgets import TextArea
 
 
-class NoteEditor(Widget):
-    """A minimal multi-line text editor using *prompt_toolkit* buffers."""
+class NoteEditor(TextArea):
+    """A ``TextArea`` with extra clipboard and undo/redo bindings."""
 
-    DEFAULT_CSS = "NoteEditor {border: none;}"
-
-    # Allow the editor to take keyboard focus so it receives key events.
-    can_focus = True
-
-    class Changed(Message):
-        """Posted when the text content changes."""
-        def __init__(self, sender: "NoteEditor") -> None:
-            self.sender = sender
-            super().__init__()
+    BINDINGS = [
+        b
+        for b in TextArea.BINDINGS
+        if (
+            "ctrl+h" not in b.key
+            and "ctrl+k" not in b.key
+            and "ctrl+m" not in b.key
+            and "ctrl+w" not in b.key
+        )
+    ]
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
-        super().__init__(**kwargs)
-        self._clipboard = InMemoryClipboard()
-        self._buffer = Buffer(document=Document(text, len(text)), multiline=True)
+        super().__init__(
+            text=text,
+            soft_wrap=True,
+            **kwargs,
+        )
+        # Enable blinking cursor after initialization since ``TextArea`` does
+        # not accept the parameter in the constructor.
         self.cursor_blink = True
 
+        # Underlying prompt_toolkit structures for advanced editing features
+        self._clipboard = InMemoryClipboard()
+        self._buffer = Buffer(document=Document(text, len(text)), multiline=True)
+        self._window = Window(BufferControl(buffer=self._buffer), wrap_lines=True)
+
+        kb = KeyBindings()
+        kb.add("c-c")(self._copy)
+        kb.add("c-v")(self._paste)
+        kb.add("c-x")(self._cut)
+        kb.add("c-z")(self._undo)
+        kb.add("c-y")(self._redo)
+
+        self._pt_app = Application(
+            layout=Layout(self._window),
+            key_bindings=kb,
+            full_screen=False,
+        )
 
     def _copy(self, event: object) -> None:
         if data := self._buffer.copy_selection():
@@ -51,76 +75,19 @@ class NoteEditor(Widget):
     def _redo(self, event: object) -> None:
         self._buffer.redo()
 
-    async def _on_key(self, event: events.Key) -> None:
-        """Translate key presses to buffer operations."""
-        key = event.key
-        if key == "left":
-            self._buffer.cursor_left()
-        elif key == "right":
-            self._buffer.cursor_right()
-        elif key == "up":
-            self._buffer.cursor_up()
-        elif key == "down":
-            self._buffer.cursor_down()
-        elif key == "backspace":
-            self._buffer.delete_before_cursor(1)
-        elif key == "delete":
-            self._buffer.delete()
-        elif key == "ctrl+c":
-            self._copy(None)
-        elif key == "ctrl+v":
-            self._paste(None)
-        elif key == "ctrl+x":
-            self._cut(None)
-        elif key == "ctrl+z":
-            self._undo(None)
-        elif key == "ctrl+y":
-            self._redo(None)
-        elif event.character:
-            self._buffer.insert_text(event.character)
-        else:
+    def _on_key(self, event: events.Key) -> None:
+        if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
+            event.stop()
             return
-
-        event.stop()
-        self.post_message(self.Changed(self))
-        self.refresh()
-
+        if event.key == "ctrl+delete":
+            event.stop()
+            self.app.action_prompt_delete()
+            return
+        super()._on_key(event)
 
     def get_text(self) -> str:
-        """Return the current text in the editor."""
-        return self._buffer.text
+        return self.text
 
     def set_text(self, value: str) -> None:
-        """Replace the current text with ``value``."""
+        self.text = value
         self._buffer.document = Document(value, len(value))
-
-    # Provide ``text`` attribute compatibility with the former TextArea widget.
-    @property
-    def text(self) -> str:  # pragma: no cover - simple getter
-        return self.get_text()
-
-    @text.setter
-    def text(self, value: str) -> None:  # pragma: no cover - simple setter
-        self.set_text(value)
-
-    def render(self) -> Text:
-        """Render the buffer with a visible cursor and soft wrapping."""
-        width = self.size.width or 80
-        doc = self._buffer.document
-        lines = []
-        cursor_line = doc.cursor_position_row
-        cursor_col = doc.cursor_position_col
-
-        for i, line in enumerate(doc.lines):
-            wrapped = [line[j:j+width] for j in range(0, len(line), width)] or [""]
-            for w_index, wrapped_line in enumerate(wrapped):
-                if i == cursor_line and w_index == 0:
-                    pos = cursor_col
-                else:
-                    pos = None
-                if pos is not None and pos <= len(wrapped_line):
-                    wrapped_line = wrapped_line[:pos] + "▍" + wrapped_line[pos:]
-                lines.append(wrapped_line)
-                pos = None
-        text = "\n".join(lines)
-        return Text(text)
