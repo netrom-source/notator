@@ -38,19 +38,24 @@ class NoteEditor(TextArea):
         # Enable blinking cursor after initialization since ``TextArea`` does
         # not accept the parameter in the constructor.
         self.cursor_blink = True
+
         # Underlying prompt_toolkit structures for advanced editing features
         self._clipboard = InMemoryClipboard()
-        # ``Buffer`` manages history and undo/redo inherently, so the
-        # ``enable_history`` argument is unnecessary and unsupported.
         self._buffer = Buffer(document=Document(text, len(text)), multiline=True)
         self._window = Window(BufferControl(buffer=self._buffer), wrap_lines=True)
+
         kb = KeyBindings()
         kb.add("c-c")(self._copy)
         kb.add("c-v")(self._paste)
         kb.add("c-x")(self._cut)
         kb.add("c-z")(self._undo)
         kb.add("c-y")(self._redo)
-        self._pt_app = Application(layout=Layout(self._window), key_bindings=kb, full_screen=False)
+
+        self._pt_app = Application(
+            layout=Layout(self._window),
+            key_bindings=kb,
+            full_screen=False,
+        )
 
     def _copy(self, event: object) -> None:
         if data := self._buffer.copy_selection():
