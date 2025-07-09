@@ -31,12 +31,13 @@ from textual import events
 from textual.widgets import (
     Input,
     Static,
-    TextArea,
     TabbedContent,
     TabPane,
     OptionList,
     Button,
 )
+
+from prompt_editor import NoteEditor
 from textual.widgets.option_list import Option
 
 # Initial note files stored on disk. ``Path`` works across operating systems
@@ -148,48 +149,7 @@ class NoteInput(Input):
     ]
 
 
-class NoteTextArea(TextArea):
-    # Text area widget with custom key bindings.
 
-    # Like ``NoteInput`` remove bindings for Ctrl+H, Ctrl+K and Ctrl+M. This
-    # prevents them from triggering delete or other commands that might
-    # conflict with the application's own shortcuts. All other default
-    # behaviour is left intact.
-    BINDINGS = [
-        b
-        for b in TextArea.BINDINGS
-        if (
-            "ctrl+h" not in b.key
-            and "ctrl+k" not in b.key
-            and "ctrl+m" not in b.key
-            and "ctrl+w" not in b.key
-        )
-    ]
-
-    def _on_key(self, event: events.Key) -> None:
-        """Handle key events for the note area.
-
-        This override removes the ``Ctrl+H``, ``Ctrl+K``, ``Ctrl+M`` and ``Ctrl+W``
-        shortcuts so they don't trigger Textual's default behaviours. All
-        other keys are passed through to ``TextArea`` for normal processing.
-        """
-
-        # Check for the control key combinations we want to ignore.
-        if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
-            # Ignore these shortcuts entirely
-            event.stop()
-            return
-        if event.key == "ctrl+delete":
-            # Trigger the deletion prompt instead of deleting text
-            event.stop()
-            self.app.action_prompt_delete()
-            return
-
-        # Defer to the base ``TextArea`` implementation for everything else
-        # to keep all standard text editing features intact.
-
-        # Defer to Textual's TextArea for all other key handling.
-        super()._on_key(event)
 
 
 class TimerOptionList(OptionList):
@@ -704,10 +664,10 @@ class NoteApp(App[None]):
         self.unsaved_map: dict[str, bool] = {}
         # Map tab id to file path (None for new unsaved files)
         self.file_map: dict[str, Path | None] = {}
-        # Keep a reference to each NoteTextArea widget by tab id so we can
+        # Keep a reference to each NoteEditor widget by tab id so we can
         # reliably focus them without querying, which may fail before the
         # widgets are fully mounted.
-        self.textareas: dict[str, NoteTextArea] = {}
+        self.textareas: dict[str, NoteEditor] = {}
         # Counter for generating unique tab ids
         self.tab_counter = 2
         # Track when Ctrl+S was last pressed to support rename on double press
@@ -781,7 +741,7 @@ class NoteApp(App[None]):
                             text = f.read()
                     except FileNotFoundError:
                         pass
-                note_area = NoteTextArea(text=text, classes="notes")
+                note_area = NoteEditor(text=text, classes="notes")
                 pane = TabPane(title, note_area, id=tab_id)
                 self.tabs.add_pane(pane)
                 self.file_map[tab_id] = path
@@ -800,7 +760,7 @@ class NoteApp(App[None]):
                 if path.exists():
                     with path.open("r", encoding="utf-8") as f:
                         text = f.read()
-                note_area = NoteTextArea(text=text, classes="notes")
+                note_area = NoteEditor(text=text, classes="notes")
                 pane = TabPane(f"Note {tab_id[-1]}", note_area, id=tab_id)
                 self.tabs.add_pane(pane)
                 self.unsaved_map[tab_id] = False
@@ -1006,7 +966,7 @@ class NoteApp(App[None]):
         tab_id = f"tab{self.tab_counter}"
         # Name new tabs by creation time without seconds but with day and month
         timestamp = datetime.now().strftime("%H%M-%d%m")
-        note_area = NoteTextArea(classes="notes")
+        note_area = NoteEditor(classes="notes")
         pane = TabPane(f"Note {timestamp}", note_area, id=tab_id)
         self.tabs.add_pane(pane)
         self.file_map[tab_id] = None
@@ -1046,7 +1006,7 @@ class NoteApp(App[None]):
         self.tab_counter += 1
         tab_id = f"tab{self.tab_counter}"
         # Create the text area separately to focus it after adding the pane.
-        note_area = NoteTextArea(text=text, classes="notes")
+        note_area = NoteEditor(text=text, classes="notes")
         # Use the base file name for the tab label
         pane = TabPane(path.stem, note_area, id=tab_id)
         self.tabs.add_pane(pane)
@@ -1256,7 +1216,7 @@ class NoteApp(App[None]):
         self.quote_request_times.append(time.time())
         self.action_show_quote()
 
-    def on_text_area_changed(self, event: TextArea.Changed) -> None:  # type: ignore[override]
+    def on_text_area_changed(self, event: NoteEditor.Changed) -> None:  # type: ignore[override]
         # Mark the current tab as modified when its content changes.
         active = self.tabs.active or "tab1"
         self.unsaved_map[active] = True
