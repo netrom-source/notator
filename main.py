@@ -42,6 +42,7 @@ from textual.widgets import (
     OptionList,
     Button,
 )
+from textual.widgets._text_area import Selection
 from textual.widgets.option_list import Option
     
 
@@ -169,9 +170,22 @@ class NoteEditor(TextArea):
         )
     ]
 
+    focus_sentence = reactive(False)
+
     def __init__(self, text: str = "", **kwargs: object) -> None:
         super().__init__(text=text, soft_wrap=True, **kwargs)
         self.cursor_blink = False
+        self._cursor_index = 0
+        self._active_start = 0
+
+    def update_indices(self) -> None:
+        """Recompute cursor and active sentence indices."""
+        self._cursor_index = self.document.get_index_from_location(
+            self.cursor_location
+        )
+        before_cursor = self.document.text[: self._cursor_index]
+        last_period = before_cursor.rfind(".")
+        self._active_start = last_period + 1 if last_period != -1 else 0
 
     async def _on_key(self, event: events.Key) -> None:
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
@@ -182,6 +196,31 @@ class NoteEditor(TextArea):
             self.app.action_prompt_delete()
             return
         await super()._on_key(event)
+        if self.focus_sentence:
+            self.update_indices()
+            self.refresh()
+
+    def _watch_selection(
+        self, previous_selection: Selection, selection: Selection
+    ) -> None:  # type: ignore[override]
+        super()._watch_selection(previous_selection, selection)
+        if self.focus_sentence:
+            self.update_indices()
+            self.refresh()
+
+    def get_line(self, line_index: int) -> Text:  # type: ignore[override]
+        line = super().get_line(line_index)
+        if self.focus_sentence:
+            line_start = self.document.get_index_from_location((line_index, 0))
+            line_end = line_start + len(line.plain)
+            gray_end = min(self._active_start, line_end)
+            if gray_end > line_start:
+                line.stylize("#666666", 0, gray_end - line_start)
+            active_start = max(self._active_start, line_start)
+            active_end = min(self._cursor_index, line_end)
+            if active_end > active_start:
+                line.stylize("#ffffff", active_start - line_start, active_end - line_start)
+        return line
 
 
 
@@ -677,6 +716,7 @@ class NoteApp(App[None]):
         Binding("ctrl+k", "noop", "", show=False, priority=True),
         Binding("ctrl+m", "noop", "", show=False, priority=True),
         ("ctrl+delete", "prompt_delete", "Slet fil"),
+        ("ctrl+j", "toggle_focus_sentence", "Fokus-s\u00e6tning"),
         ("escape", "close_menu", "Luk menu"),
         ("ctrl+pageup", "prev_tab", "Forrige fane"),
         ("ctrl+pagedown", "next_tab", "Næste fane"),
@@ -963,6 +1003,18 @@ class NoteApp(App[None]):
         self.hemingway = not self.hemingway
         state = "TIL" if self.hemingway else "FRA"
         self.notification.show(f"Hemmingway-tilstand {state}")
+
+    def action_toggle_focus_sentence(self) -> None:
+        """Toggle highlighting of the current sentence."""
+        active = self.tabs.active or "tab1"
+        editor = self.textareas.get(active)
+        if editor is None:
+            return
+        editor.focus_sentence = not editor.focus_sentence
+        editor.update_indices()
+        editor.refresh()
+        state = "TIL" if editor.focus_sentence else "FRA"
+        self.notification.show(f"Fokus-s\u00e6tning {state}")
 
     def action_noop(self) -> None:
         # An action that intentionally does nothing.
