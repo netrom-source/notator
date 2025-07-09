@@ -40,7 +40,9 @@ class NoteEditor(TextArea):
         self.cursor_blink = True
         # Underlying prompt_toolkit structures for advanced editing features
         self._clipboard = InMemoryClipboard()
-        self._buffer = Buffer(document=Document(text, len(text)), multiline=True, enable_history=True)
+        # ``Buffer`` manages history and undo/redo inherently, so the
+        # ``enable_history`` argument is unnecessary and unsupported.
+        self._buffer = Buffer(document=Document(text, len(text)), multiline=True)
         self._window = Window(BufferControl(buffer=self._buffer), wrap_lines=True)
         kb = KeyBindings()
         kb.add("c-c")(self._copy)
