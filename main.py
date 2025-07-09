@@ -25,6 +25,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from dataclasses import dataclass, field
 from pathlib import Path
+
 from typing import Optional, Dict
 
 from textual.app import App, ComposeResult
@@ -45,6 +46,7 @@ from textual.widgets import (
 from textual.widgets._text_area import Selection
 from textual.widgets.option_list import Option
 from rich.text import Text
+
     
 
 # Initial note files stored on disk. ``Path`` works across operating systems
@@ -224,6 +226,7 @@ class NoteEditor(TextArea):
         )
     ]
 
+
     focus_sentence = reactive(False)
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
@@ -251,6 +254,7 @@ class NoteEditor(TextArea):
             counts[word] = counts.get(word, 0) + 1
         return counts
 
+
     async def _on_key(self, event: events.Key) -> None:
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
             event.stop()
@@ -260,6 +264,7 @@ class NoteEditor(TextArea):
             self.app.action_prompt_delete()
             return
         await super()._on_key(event)
+
         self.app.register_activity()
         if self.focus_sentence:
             self.update_indices()
@@ -293,6 +298,7 @@ class NoteEditor(TextArea):
             if active_end > active_start:
                 line.stylize("#ffffff", active_start - line_start, active_end - line_start)
         return line
+
 
 
 
