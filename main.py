@@ -171,7 +171,7 @@ class NoteEditor(TextArea):
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
         super().__init__(text=text, soft_wrap=True, **kwargs)
-        self.cursor_blink = True
+        self.cursor_blink = False
 
     async def _on_key(self, event: events.Key) -> None:
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
