@@ -18,6 +18,11 @@
 import re
 import time
 import random
+import os
+import sys
+
+# Ensure custom modules in the same directory can be imported when running the script
+sys.path.insert(0, os.path.dirname(__file__))
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional

@@ -5,7 +5,7 @@ All interface labels and notifications are in Danish for localization.
 ## Usage
 
 1. Install dependencies with `pip install textual prompt_toolkit`.
-2. Run the app using `python main.py`.
+2. From the project folder run the app using `python main.py`.
 3. Create additional tabs with `Ctrl+N` or open an existing file with `Ctrl+O`.
    Close the active tab with `Ctrl+W` and hide/show the tab bar with `Ctrl+B`.
    Switch between tabs by clicking the labels or pressing `Ctrl+PageUp`/`Ctrl+PageDown`.
