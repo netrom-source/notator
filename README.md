@@ -20,7 +20,7 @@ All interface labels and notifications are in Danish for localization.
    indicates whether the current tab has unsaved changes and the window title
    shows an asterisk when modifications are pending.
 8. Toggle **Hemmingway mode** med `Ctrl+G` for at forhindre sletning og tilbagel\u00f8b.
-9. Toggle **fokus på s\u00e6tning** med `Ctrl+J` for kun at vise den aktive s\u00e6tning i klar hvid farve, mens tidligere s\u00e6tninger bliver m\u00f8rkegr\u00e5.
+9. Toggle **fokus på sætning** med `Ctrl+J` for kun at vise den aktive sætning i klar hvid farve, mens alt før det seneste linjeskift eller punktum bliver mørkegrå.
 10. Åbn **tilstands-menuen** med `Ctrl+Home` for at aktivere eksperimentelle skrivefunktioner.
 11. Press `Ctrl+Delete` to delete the active note. A warning message is shown
   first. After accepting it, compose a short haiku (3–5 words, 4–7 words,

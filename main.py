@@ -45,7 +45,6 @@ from textual.widgets import (
 from textual.widgets._text_area import Selection
 from textual.widgets.option_list import Option
 from rich.text import Text
-
     
 
 
@@ -225,9 +224,7 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
-
-
-
+    
     focus_sentence = reactive(False)
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
@@ -246,7 +243,9 @@ class NoteEditor(TextArea):
         )
         before_cursor = self.document.text[: self._cursor_index]
         last_period = before_cursor.rfind(".")
-        self._active_start = last_period + 1 if last_period != -1 else 0
+        last_newline = before_cursor.rfind("\n")
+        last_split = max(last_period, last_newline)
+        self._active_start = last_split + 1 if last_split != -1 else 0
 
     def compute_word_counts(self) -> Dict[str, int]:
         """Return a mapping of words to their frequency in the text."""
@@ -847,7 +846,6 @@ class NoteApp(App[None]):
         ("ctrl+delete", "prompt_delete", "Slet fil"),
         ("ctrl+j", "toggle_focus_sentence", "Fokus-s\u00e6tning"),
         ("ctrl+home", "toggle_mode_menu", "Tilstands-menu"),
-
         ("escape", "close_menu", "Luk menu"),
         ("ctrl+pageup", "prev_tab", "Forrige fane"),
         ("ctrl+pagedown", "next_tab", "Næste fane"),
