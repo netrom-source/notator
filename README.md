@@ -21,17 +21,18 @@ All interface labels and notifications are in Danish for localization.
    shows an asterisk when modifications are pending.
 8. Toggle **Hemmingway mode** med `Ctrl+G` for at forhindre sletning og tilbagel\u00f8b.
 9. Toggle **fokus på s\u00e6tning** med `Ctrl+J` for kun at vise den aktive s\u00e6tning i klar hvid farve, mens tidligere s\u00e6tninger bliver m\u00f8rkegr\u00e5.
-10. Press `Ctrl+Delete` to delete the active note. A warning message is shown
+10. Åbn **tilstands-menuen** med `Ctrl+Home` for at aktivere eksperimentelle skrivefunktioner.
+11. Press `Ctrl+Delete` to delete the active note. A warning message is shown
   first. After accepting it, compose a short haiku (3–5 words, 4–7 words,
   3–5 words) before the file is removed. The input fields are labelled
   "5 stavelser", "7 stavelser" and "5 stavelser" to hint at the rhythm.
   Use the arrow keys to move between the lines and down to the confirmation
   button.
-11. In the first step you can switch between "Slet alligevel!" and "Annuller"
+12. In the first step you can switch between "Slet alligevel!" and "Annuller"
     with the arrow keys.
-12. Open and save prompts appear as slim bars above the status line. When opening files, available documents are listed without the `.txt` extension for a cleaner look.
-13. Tabs reopen automatically from the previous session so your work continues where you left off.
-14. Press `Ctrl+L` to view a random quote from `data/quotes.txt`. Quotes appear once each until all have been shown. When the list is exhausted you can choose to start over.
+13. Open and save prompts appear as slim bars above the status line. When opening files, available documents are listed without the `.txt` extension for a cleaner look.
+14. Tabs reopen automatically from the previous session so your work continues where you left off.
+15. Press `Ctrl+L` to view a random quote from `data/quotes.txt`. Quotes appear once each until all have been shown. When the list is exhausted you can choose to start over.
     Opening the quote viewer repeatedly shows a gentle reminder if used too often.
 
 Each tab stores its text in a separate file (`data/notes1.txt` and `data/notes2.txt`). Switching tabs updates the save indicator accordingly.

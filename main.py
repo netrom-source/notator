@@ -46,6 +46,8 @@ from textual.widgets._text_area import Selection
 from textual.widgets.option_list import Option
 from rich.text import Text
 
+    
+
 
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
@@ -223,7 +225,9 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
-    
+
+
+
     focus_sentence = reactive(False)
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
@@ -260,7 +264,6 @@ class NoteEditor(TextArea):
             self.app.action_prompt_delete()
             return
         await super()._on_key(event)
-
         self.app.register_activity()
         if self.focus_sentence:
             self.update_indices()
@@ -286,13 +289,23 @@ class NoteEditor(TextArea):
         if self.focus_sentence:
             line_start = self.document.get_index_from_location((line_index, 0))
             line_end = line_start + len(line.plain)
-            gray_end = min(self._active_start, line_end)
-            if gray_end > line_start:
-                line.stylize("#666666", 0, gray_end - line_start)
-            active_start = max(self._active_start, line_start)
-            active_end = min(self._cursor_index, line_end)
-            if active_end > active_start:
-                line.stylize("#ffffff", active_start - line_start, active_end - line_start)
+            if line_end <= self._active_start:
+                # Entire line is before the active sentence
+                line.stylize("#444444")
+            else:
+                if self._active_start > line_start:
+                    gray_end = min(self._active_start, line_end)
+                    if gray_end > line_start:
+                        line.stylize("#444444", 0, gray_end - line_start)
+                if self._cursor_index > line_start:
+                    active_start = max(self._active_start, line_start)
+                    active_end = min(self._cursor_index, line_end)
+                    if active_end > active_start:
+                        line.stylize(
+                            "#ffffff",
+                            active_start - line_start,
+                            active_end - line_start,
+                        )
         return line
 
 
@@ -833,7 +846,8 @@ class NoteApp(App[None]):
         Binding("ctrl+m", "noop", "", show=False, priority=True),
         ("ctrl+delete", "prompt_delete", "Slet fil"),
         ("ctrl+j", "toggle_focus_sentence", "Fokus-s\u00e6tning"),
-        ("ctrl+0", "toggle_mode_menu", "Tilstands-menu"),
+        ("ctrl+home", "toggle_mode_menu", "Tilstands-menu"),
+
         ("escape", "close_menu", "Luk menu"),
         ("ctrl+pageup", "prev_tab", "Forrige fane"),
         ("ctrl+pagedown", "next_tab", "Næste fane"),
