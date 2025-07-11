@@ -45,7 +45,9 @@ from textual.widgets import (
 from textual.widgets._text_area import Selection
 from textual.widgets.option_list import Option
 from rich.text import Text
+
     
+
 
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
@@ -223,6 +225,8 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
+
+
 
     focus_sentence = reactive(False)
 
@@ -843,6 +847,7 @@ class NoteApp(App[None]):
         ("ctrl+delete", "prompt_delete", "Slet fil"),
         ("ctrl+j", "toggle_focus_sentence", "Fokus-s\u00e6tning"),
         ("ctrl+home", "toggle_mode_menu", "Tilstands-menu"),
+
         ("escape", "close_menu", "Luk menu"),
         ("ctrl+pageup", "prev_tab", "Forrige fane"),
         ("ctrl+pagedown", "next_tab", "Næste fane"),
