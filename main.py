@@ -223,6 +223,8 @@ class NoteEditor(TextArea):
             and "ctrl+w" not in b.key
             and "ctrl+delete" not in b.key
         )
+    ] + [
+        ("f5", "toggle_mark", "Start/stop markering"),
     ]
 
 
@@ -236,6 +238,8 @@ class NoteEditor(TextArea):
         # Dictionary of word counts used for Ordforsagelse mode
         self.word_counts: Dict[str, int] = {}
         self.word_counts = self.compute_word_counts()
+        # Track custom selection anchor for TTY-friendly marking
+        self._mark_anchor: tuple[int, int] | None = None
 
     def update_indices(self) -> None:
         """Recompute cursor and active sentence indices."""
@@ -255,6 +259,21 @@ class NoteEditor(TextArea):
             counts[word] = counts.get(word, 0) + 1
         return counts
 
+    def action_toggle_mark(self) -> None:
+        """Start or stop custom selection mode."""
+        if self._mark_anchor is None:
+            # Start selection at current cursor
+            self._mark_anchor = self.cursor_location
+            self.selection = Selection(self._mark_anchor, self._mark_anchor)
+        else:
+            # Stop selection
+            self._mark_anchor = None
+
+    def action_copy(self) -> None:
+        """Copy selection and exit mark mode."""
+        super().action_copy()
+        self._mark_anchor = None
+
     async def _on_key(self, event: events.Key) -> None:
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
             event.stop()
@@ -265,6 +284,9 @@ class NoteEditor(TextArea):
             return
         await super()._on_key(event)
         self.app.register_activity()
+        if self._mark_anchor is not None:
+            # Extend selection from anchor to current cursor
+            self.selection = Selection(self._mark_anchor, self.cursor_location)
         if self.focus_sentence:
             self.update_indices()
             self.refresh()
