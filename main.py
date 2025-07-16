@@ -47,6 +47,7 @@ from textual.widgets.option_list import Option
 from rich.text import Text
     
 
+
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
 DATA_DIR = Path("data")
@@ -223,6 +224,7 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
+
 
     focus_sentence = reactive(False)
 
@@ -502,6 +504,7 @@ class NotificationBar:
         # ``Static`` widgets store the current content in ``renderable``.
         # Capture that value so it can be restored after the timeout.
         previous = self.app.status.renderable
+
         self.app.status.update(message)
 
         def restore() -> None:
