@@ -47,6 +47,7 @@ from textual.widgets.option_list import Option
 from rich.text import Text
     
 
+
 # Initial note files stored on disk. ``Path`` works across operating systems
 # and makes future modifications easy. These are loaded on startup.
 DATA_DIR = Path("data")
@@ -223,7 +224,7 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
-
+    
     focus_sentence = reactive(False)
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
