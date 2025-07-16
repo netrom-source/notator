@@ -224,7 +224,8 @@ class NoteEditor(TextArea):
             and "ctrl+delete" not in b.key
         )
     ]
-    
+
+
     focus_sentence = reactive(False)
 
     def __init__(self, text: str = "", **kwargs: object) -> None:
@@ -500,7 +501,10 @@ class NotificationBar:
         if self._restore_timer is not None:
             self._restore_timer.stop()
 
-        previous = self.app.status.plain
+        # ``Static`` widgets store the current content in ``renderable``.
+        # Capture that value so it can be restored after the timeout.
+        previous = self.app.status.renderable
+
         self.app.status.update(message)
 
         def restore() -> None:
