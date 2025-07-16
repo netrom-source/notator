@@ -134,19 +134,6 @@ Input {
 }
 
 
-/* Notification bar at bottom */
-#notification_bar {
-    layer: overlay;        /* float above other widgets */
-    dock: bottom;
-    margin-bottom: 1;      /* sit above the status bar */
-    height: 3;          /* increased to ensure text visibility */
-    width: 100%;
-    background: #454545;
-    color: #ffffff;
-    border: tall #888888;
-    opacity: 0;            /* start fully transparent */
-    content-align: center middle;
-}
 
 /* Overlay shown when confirming file deletion with a haiku */
 #haiku_overlay {
