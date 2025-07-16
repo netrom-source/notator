@@ -28,7 +28,7 @@ TabPane {
     /* Fill all available space within the tab pane */
     width: 100%;
     height: 1fr;
-    border: solid #666666;
+    border: ascii #666666;
     background: #222222;
 }
 
@@ -45,7 +45,7 @@ TabPane {
     width: 100%;        /* span full width of the screen */
     height: auto;       /* grow to fit content */
     margin-top: 1;
-    border: solid #888888;
+    border: ascii #888888;
     background: #303030;
     padding: 1 2;
     align: center middle;
@@ -71,7 +71,7 @@ TabPane {
     width: 100%;
     height: auto;           /* size to content */
     min-height: 3;
-    border: solid #888888;
+    border: ascii #888888;
     background: #303030;
     padding: 1 2;
     align: center middle;
@@ -104,7 +104,7 @@ Button:focus {
 }
 
 Input:focus {
-    border: solid #888888;
+    border: ascii #888888;
 }
 
 /* Ensure input text is readable */
@@ -142,7 +142,7 @@ Input {
     height: auto;
     max-height: 90%;
     overflow: auto;
-    border: solid #888888;
+    border: ascii #888888;
     padding: 1 2;
     background: #303030;
     color: #e0e0e0;
@@ -191,7 +191,7 @@ Input {
     height: auto;
     max-height: 80%;
     overflow: auto;
-    border: solid #888888;
+    border: ascii #888888;
     padding: 1 2;
     background: #303030;
     color: #e0e0e0;

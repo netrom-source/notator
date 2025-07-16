@@ -187,7 +187,8 @@ class TimerDisplay(Static):
 
     def update_time(self, seconds: int) -> None:
         minutes, secs = divmod(max(0, seconds), 60)
-        self.update(f"⏱ {minutes:02d}:{secs:02d}")
+        # Use ASCII only so the timer label renders on bare consoles
+        self.update(f"T {minutes:02d}:{secs:02d}")
 
 
 class NoteInput(Input):
@@ -223,6 +224,9 @@ class NoteEditor(TextArea):
             and "ctrl+w" not in b.key
             and "ctrl+delete" not in b.key
         )
+    ] + [
+        ("f5", "toggle_mark", "Start/stop markering"),
+        ("ctrl+space", "toggle_mark", "Start/stop markering"),
     ]
 
 
@@ -236,6 +240,8 @@ class NoteEditor(TextArea):
         # Dictionary of word counts used for Ordforsagelse mode
         self.word_counts: Dict[str, int] = {}
         self.word_counts = self.compute_word_counts()
+        # Track custom selection anchor for TTY-friendly marking
+        self._mark_anchor: tuple[int, int] | None = None
 
     def update_indices(self) -> None:
         """Recompute cursor and active sentence indices."""
@@ -255,6 +261,29 @@ class NoteEditor(TextArea):
             counts[word] = counts.get(word, 0) + 1
         return counts
 
+    def action_toggle_mark(self) -> None:
+        """Start or stop custom selection mode."""
+        if self._mark_anchor is None:
+            # Start selection at current cursor
+            self._mark_anchor = self.cursor_location
+            sel = Selection(self._mark_anchor, self._mark_anchor)
+            self.selection = sel
+            if self.screen:
+                self.screen.selections = {self: sel}
+        else:
+            # Stop selection
+            self._mark_anchor = None
+            self.selection = Selection.cursor(self.cursor_location)
+            if self.screen:
+                self.screen.clear_selection()
+
+    def action_copy(self) -> None:
+        """Copy selection and exit mark mode."""
+        super().action_copy()
+        self._mark_anchor = None
+        if self.screen:
+            self.screen.clear_selection()
+
     async def _on_key(self, event: events.Key) -> None:
         if event.key in {"ctrl+h", "ctrl+k", "ctrl+m", "ctrl+w"}:
             event.stop()
@@ -265,6 +294,12 @@ class NoteEditor(TextArea):
             return
         await super()._on_key(event)
         self.app.register_activity()
+        if self._mark_anchor is not None:
+            # Extend selection from anchor to current cursor
+            sel = Selection(self._mark_anchor, self.cursor_location)
+            self.selection = sel
+            if self.screen:
+                self.screen.selections = {self: sel}
         if self.focus_sentence:
             self.update_indices()
             self.refresh()
