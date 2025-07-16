@@ -485,29 +485,28 @@ class SaveAsMenu(Vertical):
             self.app.bell()
 
 
-class NotificationBar(Static):
-    """Simple message bar that fades out after a short delay."""
+class NotificationBar:
+    """Helper for showing temporary messages in the status bar."""
 
-    def on_mount(self) -> None:
-        # Begin hidden
-        self.display = False
-        self.styles.opacity = 0
+    def __init__(self, app: "NoteApp") -> None:
+        self.app = app
+        # Timer used to restore the previous status message
+        self._restore_timer = None
 
     def show(self, message: str, duration: float = 2.0) -> None:
-        """Display ``message`` briefly at the bottom of the screen."""
+        """Display ``message`` in the status line for ``duration`` seconds."""
 
-        self.update(message)
-        self.display = True
-        self.styles.opacity = 1.0
+        # Cancel any existing timer so the previous message does not flash back
+        if self._restore_timer is not None:
+            self._restore_timer.stop()
 
-        def fade_out() -> None:
-            self.styles.animate("opacity", 0.0, duration=0.3, on_complete=self._hide)
+        previous = self.app.status.plain
+        self.app.status.update(message)
 
-        self.set_timer(duration, fade_out)
+        def restore() -> None:
+            self.app.status.update(previous)
 
-    def _hide(self) -> None:
-        self.display = False
-        self.styles.opacity = 0
+        self._restore_timer = self.app.set_timer(duration, restore)
 
 
 class QuoteOverlay(Vertical):
@@ -913,8 +912,8 @@ class NoteApp(App[None]):
         yield self.haiku_prompt
         self.status = Static(id="status_display")
         yield self.status
-        self.notification = NotificationBar(id="notification_bar")
-        yield self.notification
+        # Helper for temporary status messages
+        self.notification = NotificationBar(self)
         # Overlay for displaying quotes or related prompts
         self.quote_overlay = QuoteOverlay(id="quote_overlay")
         self.quote_overlay.visible = False

@@ -40,5 +40,6 @@ Each tab stores its text in a separate file (`data/notes1.txt` and `data/notes2.
 Default shortcuts for `Ctrl+H`, `Ctrl+K` and `Ctrl+M` are disabled with high priority so they no longer trigger Textual's built-in commands.
 
 All styling can be changed in `style.css`. The default sheet now uses muted
-earth tones with a dusty green timer bar. Notification messages slide up from the
-bottom and fade away after a short delay. Adjust the palette and animations inthe CSS as you see fit.
+earth tones with a dusty green timer bar. Notification messages now appear in
+the status bar at the bottom and fade away automatically. Adjust the palette in
+the CSS as you see fit.
