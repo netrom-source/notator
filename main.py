@@ -227,6 +227,7 @@ class NoteEditor(TextArea):
     ] + [
         ("f5", "toggle_mark", "Start/stop markering"),
         ("ctrl+space", "toggle_mark", "Start/stop markering"),
+
     ]
 
 
