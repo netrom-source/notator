@@ -42,7 +42,11 @@ class NotatorApp:
         buffer = self.text_area.buffer
         document = buffer.document
         if document.selection:
-            self.clipboard = document.selection.text
+            from_idx = document.selection.original_cursor_position
+            to_idx = document.selection.cursor_position
+            if from_idx > to_idx:
+                from_idx, to_idx = to_idx, from_idx
+            self.clipboard = document.text[from_idx:to_idx]
 
     def paste_clipboard(self):
         self.text_area.buffer.insert_text(self.clipboard)
